@@ -46,7 +46,7 @@ namespace DOL.GS.PacketHandler.Client.v168
 		/// <summary>
 		/// Handles player world init requests
 		/// </summary>
-		protected class WorldInitAction : RegionAction
+		public class WorldInitAction : RegionAction
 		{
 			/// <summary>
 			/// Constructs a new WorldInitAction

@@ -74,6 +74,7 @@ namespace DOL.GS.GameEvents
 		/// <returns></returns>
 		public static string GetProcessCounterName()
 		{
+			/*
 			Process process = Process.GetCurrentProcess();
 			int id = process.Id;
 			PerformanceCounterCategory perfCounterCat = new PerformanceCounterCategory("Process");
@@ -83,6 +84,8 @@ namespace DOL.GS.GameEvents
 				if (((InstanceData)entry.Value).RawValue == id)
 					return processCounterName;
 			}
+			*/
+			
 			return "";
 		}
 

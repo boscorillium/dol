@@ -72,6 +72,9 @@
       <HintPath>..\sharedModules\log4net\log4net.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="Mono.Addins">
+      <HintPath>..\sharedModules\Mono.Addins\Mono.Addins.dll</HintPath>
+    </Reference>
     <Reference Include="System">
       <Name>System</Name>
     </Reference>

@@ -66,16 +66,14 @@ namespace DOL.GS.PacketHandler.Client.v168
 					) && client.ClientState == GameClient.eClientState.CharScreen)
 				{
 					bool charFound = false;
-					for (int i = 0; i < client.Account.Characters.Length; i++)
-					{
-						if (client.Account.Characters[i] != null
-						    && client.Account.Characters[i].Name == charName)
-						{
-							charFound = true;
-							client.LoadPlayer(i);
-							break;
-						}
-					}
+
+				    int charIndex = client.Account.GetCharacterIndexByName(charName);
+                    if (charIndex != -1)
+                    {
+                        charFound = true;
+                        client.LoadPlayer(charIndex);
+                    }
+
 					if (charFound == false)
 					{
 						client.Player = null;

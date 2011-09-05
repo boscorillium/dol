@@ -55,10 +55,16 @@ namespace DOL.GS.Behaviour
             //it is not neccessary anymore to register new quests with the 
             //server, it is done automatically!
             foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
-            {
+            {	
+				if (assembly.GetName().Name == "DOLBase")
+					continue;
+				
                 // Walk through each type in the assembly
                 foreach (Type type in assembly.GetTypes())
                 {
+					if (type.FullName == "DOL.MPK.MPK")
+						continue;
+					
                     // Pick up a class
                     if (type.IsClass != true)
                         continue;                                        

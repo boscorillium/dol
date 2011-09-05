@@ -6732,7 +6732,7 @@ namespace DOL.GS
 
 							if (spell != null)
 							{
-								int chance = reactiveItem.ProcChance > 0 ? reactiveItem.ProcChance : 10;
+								int chance = reactiveItem.ProcChance > 0 ? (int)reactiveItem.ProcChance : 10;
 
 								if (Util.Chance(chance))
 								{

@@ -31,6 +31,7 @@ using DOL.GS.ServerRules;
 using DOL.GS.Spells;
 using DOL.GS.Commands;
 using DOL.Events;
+using Mono.Addins;
 using log4net;
 using Microsoft.CSharp;
 using Microsoft.VisualBasic;
@@ -202,68 +203,86 @@ namespace DOL.GS
 			{
 				if (log.IsDebugEnabled)
 					log.Debug("ScriptMgr: Searching for commands in " + script.GetName());
-				// Walk through each type in the assembly
+				
+                // Walk through each type in the assembly
 				foreach (Type type in script.GetTypes())
 				{
-					// Pick up a class
-					if (type.IsClass != true) continue;
-					if (type.GetInterface("DOL.GS.Commands.ICommandHandler") == null) continue;
-
-					try
-					{
-						object[] objs = type.GetCustomAttributes(typeof(CmdAttribute), false);
-						foreach (CmdAttribute attrib in objs)
-						{
-							bool disabled = false;
-							foreach (string str in disabledarray)
-							{
-								if (attrib.Cmd.Replace('&', '/') == str)
-								{
-									disabled = true;
-									log.Info("Will not load command " + attrib.Cmd + " as it is disabled in server properties");
-									break;
-								}
-							}
-
-							if (disabled)
-								continue;
-
-							if (m_gameCommands.ContainsKey(attrib.Cmd))
-							{
-								log.Info(attrib.Cmd + " from " + script.GetName() + " has been suppressed, a command of that type already exists!");
-								continue;
-							}
-							if (log.IsDebugEnabled && quiet == false)
-								log.Debug("ScriptMgr: Command - '" + attrib.Cmd + "' - (" + attrib.Description + ") required plvl:" + attrib.Level);
-
-							GameCommand cmd = new GameCommand();
-							cmd.Usage = attrib.Usage;
-							cmd.m_cmd = attrib.Cmd;
-							cmd.m_lvl = attrib.Level;
-							cmd.m_desc = attrib.Description;
-							cmd.m_cmdHandler = (ICommandHandler)Activator.CreateInstance(type);
-							m_gameCommands.Add(attrib.Cmd, cmd);
-							if (attrib.Aliases != null)
-							{
-								foreach (string alias in attrib.Aliases)
-								{
-									m_gameCommands.Add(alias, cmd);
-								}
-							}
-						}
-					}
-					catch (Exception e)
-					{
-						if (log.IsErrorEnabled)
-							log.Error("LoadCommands", e);
-					}
+					ProcessCommand(quiet, disabledarray, type);
 				}
 			}
-			log.Info("Loaded " + m_gameCommands.Count + " commands!");
+			
+			int extensionCount = 0;
+		    var extensionNodeList = AddinManager.GetExtensionNodes("/DawnOfLight/GameServer/Commands");
+		    foreach (TypeExtensionNode node in extensionNodeList)
+		    {
+				extensionCount++;
+		        ProcessCommand(quiet, disabledarray, node.Type);
+		    }
+
+		    log.Info("Loaded " + m_gameCommands.Count + " commands!");
+			log.Info (extensionCount + " of those were from extensions!");
 			return true;
 		}
 
-		/// <summary>
+	    private static void ProcessCommand(bool quiet, string[] disabledarray, Type type)
+	    {
+// Pick up a class
+	        if (type.IsClass != true) return;
+	        if (type.GetInterface("DOL.GS.Commands.ICommandHandler") == null) return;
+
+	        try
+	        {
+	            object[] objs = type.GetCustomAttributes(typeof (CmdAttribute), false);
+	            foreach (CmdAttribute attrib in objs)
+	            {
+	                bool disabled = false;
+	                foreach (string str in disabledarray)
+	                {
+	                    if (attrib.Cmd.Replace('&', '/') == str)
+	                    {
+	                        disabled = true;
+	                        log.Info("Will not load command " + attrib.Cmd + " as it is disabled in server properties");
+	                        break;
+	                    }
+	                }
+
+	                if (disabled)
+	                    continue;
+
+	                if (m_gameCommands.ContainsKey(attrib.Cmd))
+	                {
+                        log.Info(attrib.Cmd + " from " + type.Assembly.GetName().Name +
+	                             " has been suppressed, a command of that type already exists!");
+	                    continue;
+	                }
+	                if (log.IsDebugEnabled && quiet == false)
+	                    log.Debug("ScriptMgr: Command - '" + attrib.Cmd + "' - (" + attrib.Description + ") required plvl:" +
+	                              attrib.Level);
+
+	                GameCommand cmd = new GameCommand();
+	                cmd.Usage = attrib.Usage;
+	                cmd.m_cmd = attrib.Cmd;
+	                cmd.m_lvl = attrib.Level;
+	                cmd.m_desc = attrib.Description;
+	                cmd.m_cmdHandler = (ICommandHandler) Activator.CreateInstance(type);
+	                m_gameCommands.Add(attrib.Cmd, cmd);
+	                if (attrib.Aliases != null)
+	                {
+	                    foreach (string alias in attrib.Aliases)
+	                    {
+	                        m_gameCommands.Add(alias, cmd);
+	                    }
+	                }
+	            }
+	        }
+	        catch (Exception e)
+	        {
+	            if (log.IsErrorEnabled)
+	                log.Error("LoadCommands", e);
+	        }
+	    }
+
+	    /// <summary>
 		/// Called when a command needs to be handled
 		/// </summary>
 		/// <param name="client">Client executing the command</param>

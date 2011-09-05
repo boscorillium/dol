@@ -920,6 +920,7 @@ namespace DOL.GS.PacketHandler
 				long start = Environment.TickCount;
 				try
 				{
+					log.InfoFormat("Logging with packet handler: {0}", packetHandler.GetType().ToString());
 					packetHandler.HandlePacket(m_client, packet);
 				}
 				catch (Exception e)

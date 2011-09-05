@@ -51,7 +51,7 @@ namespace DOL.GS.PacketHandler.Client.v168
 		/// <summary>
 		/// Handles player init requests
 		/// </summary>
-		protected class PlayerInitRequestAction : RegionAction
+		public class PlayerInitRequestAction : RegionAction
 		{
 			/// <summary>
 			/// Constructs a new PlayerInitRequestHandler

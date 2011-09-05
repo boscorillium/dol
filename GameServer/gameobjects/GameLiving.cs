@@ -2934,7 +2934,7 @@ namespace DOL.GS
 
 			// Proc chance is 2.5% per SPD, i.e. 10% for a 3.5 SPD weapon. - Tolakram, changed average speed to 3.5
 
-			int procChance = (int)Math.Ceiling(((weapon.ProcChance > 0 ? weapon.ProcChance : 10) * (weapon.SPD_ABS / 35.0)));
+			int procChance = (int)Math.Ceiling(((weapon.ProcChance > 0 ? (int)weapon.ProcChance : 10) * (weapon.SPD_ABS / 35.0)));
 
 			// Proc #1
 

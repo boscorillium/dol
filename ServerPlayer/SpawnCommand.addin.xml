@@ -1,0 +1,16 @@
+<Addin id="SpawnCommand" namespace="DawnOfLight" version="1.0">
+
+<Runtime>
+	<Import assembly="ServerPlayer.dll" />
+</Runtime>
+
+<Dependencies>
+	<Addin id="GameServer" version="1.0"/>
+</Dependencies>	
+	
+<Extension path="/DawnOfLight/GameServer/Commands">
+	<Command type="ServerPlayer.SpawnCommandHandler" />
+</Extension>
+
+</Addin>
+

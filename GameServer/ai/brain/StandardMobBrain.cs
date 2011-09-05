@@ -940,7 +940,7 @@ namespace DOL.AI.Brain
 
 			GamePlayer attacker = (GamePlayer)attackData.Attacker;
 			Group attackerGroup = attacker.Group;
-			int numAttackers = (attackerGroup == null) ? 1 : attackerGroup.MemberCount;
+			int numAttackers = (attackerGroup == null) ? 1 : (int)attackerGroup.MemberCount;
 			int maxAdds = (numAttackers + 1) / 2 - 1;
 			if (maxAdds > 0)
 			{
