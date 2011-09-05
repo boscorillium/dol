@@ -7,13 +7,9 @@
     <ProjectGuid>{43BFC675-13B7-4AA8-97F6-6109948849CC}</ProjectGuid>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ApplicationIcon>
-    </ApplicationIcon>
     <AssemblyKeyContainerName>
     </AssemblyKeyContainerName>
     <AssemblyName>DOLDatabase</AssemblyName>
-    <AssemblyOriginatorKeyFile>
-    </AssemblyOriginatorKeyFile>
     <DefaultClientScript>JScript</DefaultClientScript>
     <DefaultHTMLPageLayout>Grid</DefaultHTMLPageLayout>
     <DefaultTargetSchema>IE50</DefaultTargetSchema>
@@ -21,14 +17,11 @@
     <OutputType>Library</OutputType>
     <RootNamespace>DOLDatabase</RootNamespace>
     <RunPostBuildEvent>OnBuildSuccess</RunPostBuildEvent>
-    <StartupObject>
-    </StartupObject>
     <FileUpgradeFlags>
     </FileUpgradeFlags>
     <UpgradeBackupLocation>
     </UpgradeBackupLocation>
     <OldToolsVersion>3.5</OldToolsVersion>
-    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <SourceAnalysisOverrideSettingsFile>C:\Documents and Settings\RedFish\Application Data\ICSharpCode/SharpDevelop3.0\Settings.SourceAnalysis</SourceAnalysisOverrideSettingsFile>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
     <NoStdLib>false</NoStdLib>
@@ -38,27 +31,34 @@
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <OutputPath>..\debug\lib\</OutputPath>
-    <CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
     <ConfigurationOverrideFile>
     </ConfigurationOverrideFile>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <DebugSymbols>true</DebugSymbols>
     <Optimize>false</Optimize>
     <RemoveIntegerChecks>false</RemoveIntegerChecks>
-    <DebugType>Full</DebugType>
+    <DebugType>full</DebugType>
     <ErrorReport>prompt</ErrorReport>
+    <GenerateSerializationAssemblies>Auto</GenerateSerializationAssemblies>
+    <RegisterForComInterop>false</RegisterForComInterop>
+    <BaseAddress>285212672</BaseAddress>
+    <FileAlignment>4096</FileAlignment>
+    <NoWarn />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <OutputPath>..\release\lib\</OutputPath>
-    <CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
     <ConfigurationOverrideFile>
     </ConfigurationOverrideFile>
     <DefineConstants>TRACE</DefineConstants>
-    <DebugSymbols>false</DebugSymbols>
     <Optimize>true</Optimize>
     <RemoveIntegerChecks>false</RemoveIntegerChecks>
-    <DebugType>None</DebugType>
+    <DebugType>none</DebugType>
     <ErrorReport>prompt</ErrorReport>
+    <GenerateSerializationAssemblies>Auto</GenerateSerializationAssemblies>
+    <RegisterForComInterop>false</RegisterForComInterop>
+    <BaseAddress>285212672</BaseAddress>
+    <FileAlignment>4096</FileAlignment>
+    <NoWarn />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Platform)' == 'AnyCPU' ">
     <GenerateSerializationAssemblies>Auto</GenerateSerializationAssemblies>
@@ -71,11 +71,9 @@
     <Reference Include="log4net">
       <Name>log4net</Name>
       <HintPath>..\sharedModules\log4net\log4net.dll</HintPath>
-      <Private>True</Private>
     </Reference>
     <Reference Include="MySql.Data">
       <HintPath>..\sharedModules\MySQL\MySql.Data.dll</HintPath>
-      <Private>True</Private>
     </Reference>
     <Reference Include="System">
       <Name>System</Name>
@@ -335,7 +333,7 @@
     <Compile Include="ObjectDatabase.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="UniqueID\IDGenerator.cs">
+    <Compile Include="UniqueID\IdGenerator.cs">
       <SubType>Code</SubType>
     </Compile>
   </ItemGroup>
