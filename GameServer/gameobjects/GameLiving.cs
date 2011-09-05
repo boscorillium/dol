@@ -1621,8 +1621,9 @@ namespace DOL.GS
 			}
 
 			//Check if the target is in front of attacker
+            bool objectInFront = IsObjectInFront(ad.Target, 120, true);
 			if (!ignoreLOS && ad.AttackType != AttackData.eAttackType.Ranged && this is GamePlayer &&
-			    !(ad.Target is GameKeepComponent) && !(IsObjectInFront(ad.Target, 120, true) && TargetInView))
+			    !(ad.Target is GameKeepComponent) && !(objectInFront && TargetInView))
 			{
 				ad.AttackResult = eAttackResult.TargetNotVisible;
 				return ad;
@@ -6048,6 +6049,14 @@ namespace DOL.GS
 					{
 						isNewAbility = true;
 						m_abilities.Add(ability.KeyName, ability);
+
+                        CharacterAbilities charAbilities = new CharacterAbilities();
+                        charAbilities.CharacterName = Name;
+                        charAbilities.Ability = ability.KeyName;
+                        charAbilities.Level = ability.Level;
+                        charAbilities.Enabled = true;
+                        GameServer.Database.AddObject(charAbilities);
+
 						m_skillList.Add(ability);
 						ability.Activate(this, sendUpdates);
 					}

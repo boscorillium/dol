@@ -777,7 +777,10 @@ namespace DOL.GS
 				m_status = eGameServerStatus.GSS_Open;
 
 				if (log.IsInfoEnabled)
+                {
 					log.Info("GameServer is now open for connections!");
+                    log.Info(string.Format("Ready: {0}", DateTime.Now.ToString()));
+                }
 
 				//INIT WAS FINE!
 				return true;
@@ -1259,6 +1262,8 @@ namespace DOL.GS
 			m_gmLog = LogManager.GetLogger(Configuration.GMActionsLoggerName);
 			m_cheatLog = LogManager.GetLogger(Configuration.CheatLoggerName);
 		    m_inventoryLog = LogManager.GetLogger(Configuration.InventoryLoggerName);
+
+            log.InfoFormat("Start: {0}", DateTime.Now.ToString());
 
 			if (log.IsDebugEnabled)
 			{

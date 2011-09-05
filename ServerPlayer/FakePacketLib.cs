@@ -5,21 +5,28 @@ using System.Text;
 using DOL.GS.PacketHandler;
 using DOL.GS;
 using DOL.Events;
-
+using ServerPlayer;
+using log4net;
 
 namespace DOL.SP
 {
     public class FakePacketLib : IPacketLib
     {
-		private GamePlayer player;
+        private static readonly ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
 		private GamePlayer main;
 		
-		public FakePacketLib(GamePlayer player, GamePlayer main)
+		public FakePacketLib(GamePlayer main)
 		{
-			this.player = player;
 			this.main = main;
 		}
 		
+        public GamePlayer Player
+        {
+            get;
+            set;
+        }
+
         #region IPacketLib Members
 		
 		public void SendGroupInviteCommand(GS.GamePlayer invitingPlayer, string inviteMessage)
@@ -33,11 +40,11 @@ namespace DOL.SP
 					if (groupLeader.Group.Leader != groupLeader) return;
 	                if (groupLeader.Group.MemberCount >= 6)
 					{
-						player.Out.SendMessage("The group is full.", eChatType.CT_System, eChatLoc.CL_SystemWindow);
+                        Player.Out.SendMessage("The group is full.", eChatType.CT_System, eChatLoc.CL_SystemWindow);
 						return;
 					}
-					groupLeader.Group.AddMember(player);
-					GameEventMgr.Notify(GamePlayerEvent.AcceptGroup, player);
+                    groupLeader.Group.AddMember(Player);
+                    GameEventMgr.Notify(GamePlayerEvent.AcceptGroup, Player);
 					return;
 				}
 
@@ -45,9 +52,11 @@ namespace DOL.SP
 				GroupMgr.AddGroup(group, group);
 	
 				group.AddMember(groupLeader);
-				group.AddMember(player);
+                group.AddMember(Player);
 	
-				GameEventMgr.Notify(GamePlayerEvent.AcceptGroup, player);
+                Player.Group = group;
+
+                GameEventMgr.Notify(GamePlayerEvent.AcceptGroup, Player);
 			}
         }
 		
@@ -303,7 +312,7 @@ namespace DOL.SP
 
         public void SendCombatAnimation(GS.GameObject attacker, GS.GameObject defender, ushort weaponID, ushort shieldID, int style, byte stance, byte result, byte targetHealthPercent)
         {
-           
+            log.Info("Should be sending combat animation");
         }
 
         public void SendStatusUpdate()

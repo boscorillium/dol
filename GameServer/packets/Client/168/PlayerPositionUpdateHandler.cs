@@ -56,7 +56,10 @@ namespace DOL.GS.PacketHandler.Client.v168
 			//Tiv: in very rare cases client send 0xA9 packet before sending S<=C 0xE8 player world initialize
 			if ((client.Player.ObjectState != GameObject.eObjectState.Active) ||
 			    (client.ClientState != GameClient.eClientState.Playing))
+            {
+                log.InfoFormat("{0}: ObjectState is either not Active or ClientState is not Playing", client.Player.Name);
 				return;
+            }
 
 			int environmentTick = Environment.TickCount;
 			int packetVersion;
@@ -142,45 +145,12 @@ namespace DOL.GS.PacketHandler.Client.v168
 				return; // TODO: what should we do? player lost in space
 			}
 
-			// move to bind if player fell through the floor
-			if (realZ == 0)
-			{
-				client.Player.MoveTo(
-					(ushort)client.Player.DBCharacter.BindRegion,
-					client.Player.DBCharacter.BindXpos,
-					client.Player.DBCharacter.BindYpos,
-					(ushort)client.Player.DBCharacter.BindZpos,
-					(ushort)client.Player.DBCharacter.BindHeading
-				);
-				return;
-			}
+            CheckFallThroughFloor(realZ, client);
 
 			int realX = newZone.XOffset + xOffsetInZone;
 			int realY = newZone.YOffset + yOffsetInZone;
 
-			bool zoneChange = newZone != client.Player.LastPositionUpdateZone;
-			if (zoneChange)
-			{
-				//If the region changes -> make sure we don't take any falling damage
-				if (client.Player.LastPositionUpdateZone != null && newZone.ZoneRegion.ID != client.Player.LastPositionUpdateZone.ZoneRegion.ID)
-					client.Player.MaxLastZ = int.MinValue;
-
-				// Update water level and diving flag for the new zone
-				client.Out.SendPlayerPositionAndObjectID();
-				zoneChange = true;
-
-				/*
-				 * "You have entered Burial Tomb."
-				 * "Burial Tomb"
-				 * "Current area is adjusted for one level 1 player."
-				 * "Current area has a 50% instance bonus."
-				 */
-				client.Out.SendMessage(LanguageMgr.GetTranslation(client, "PlayerPositionUpdateHandler.Entered", newZone.Description),
-				                       eChatType.CT_System, eChatLoc.CL_SystemWindow);
-				client.Out.SendMessage(newZone.Description, eChatType.CT_ScreenCenterSmaller, eChatLoc.CL_SystemWindow);
-
-				client.Player.LastPositionUpdateZone = newZone;
-			}
+            bool zoneChange = HandleZoneChange(newZone, client);
 
 			int coordsPerSec = 0;
 			int jumpDetect = 0;
@@ -234,6 +204,199 @@ namespace DOL.GS.PacketHandler.Client.v168
 				client.Player.IsJumping = false;
 			}
 
+            CheckMovementHack(client, coordsPerSec, tolerance, jumpDetect, environmentTick);
+
+            ushort headingflag = packet.ReadShort();
+            client.Player.Heading = (ushort)(headingflag & 0xFFF);
+            ushort flyingflag = packet.ReadShort();
+            byte flags = (byte)packet.ReadByte();
+
+            if (client.Player.X != realX || client.Player.Y != realY)
+            {
+                client.Player.TempProperties.setProperty(LASTMOVEMENTTICK, client.Player.CurrentRegion.Time);
+            }
+            client.Player.X = realX;
+            client.Player.Y = realY;
+            client.Player.Z = realZ;
+
+            if (zoneChange)
+            {
+                // update client zone information for waterlevel and diving
+                client.Out.SendPlayerPositionAndObjectID();
+            }
+
+            // used to predict current position, should be before
+            // any calculation (like fall damage)
+            client.Player.MovementStartTick = Environment.TickCount;
+
+            // Begin ---------- New Area System -----------
+            if (client.Player.CurrentRegion.Time > client.Player.AreaUpdateTick) // check if update is needed
+            {
+                IList oldAreas = client.Player.CurrentAreas;
+
+                // Because we may be in an instance we need to do the area check from the current region 
+                // rather than relying on the zone which is in the skinned region.  - Tolakram
+
+                IList newAreas = client.Player.CurrentRegion.GetAreasOfZone(newZone, client.Player);
+
+                // Check for left areas
+                if (oldAreas != null)
+                {
+                    foreach (IArea area in oldAreas)
+                    {
+                        if (!newAreas.Contains(area))
+                        {
+                            area.OnPlayerLeave(client.Player);
+                        }
+                    }
+                }
+                // Check for entered areas
+                foreach (IArea area in newAreas)
+                {
+                    if (oldAreas == null || !oldAreas.Contains(area))
+                    {
+                        area.OnPlayerEnter(client.Player);
+                    }
+                }
+                // set current areas to new one...
+                client.Player.CurrentAreas = newAreas;
+                client.Player.AreaUpdateTick = client.Player.CurrentRegion.Time + 2000; // update every 2 seconds
+            }
+            // End ---------- New Area System -----------
+
+
+            client.Player.TargetInView = ((flags & 0x10) != 0);
+            client.Player.GroundTargetInView = ((flags & 0x08) != 0);
+            //7  6  5  4  3  2  1 0
+            //15 14 13 12 11 10 9 8
+            //                1 1
+
+            SpeedAndFlyHackDetection(client, data, flyingflag, environmentTick, realX, realY, realZ);
+
+            CheckFallingDamage(client, flyingflag);
+
+            byte[] con168 = packet.ToArray();
+            //Riding is set here!
+            if (client.Player.Steed != null && client.Player.Steed.ObjectState == GameObject.eObjectState.Active)
+            {
+                client.Player.Heading = client.Player.Steed.Heading;
+
+                con168[2] = 0x18; // Set ride flag 00011000
+                con168[3] = 0; // player speed = 0 while ride
+                con168[12] = (byte)(client.Player.Steed.ObjectID >> 8); //heading = steed ID
+                con168[13] = (byte)(client.Player.Steed.ObjectID & 0xFF);
+                con168[14] = (byte)0;
+                con168[15] = (byte)(client.Player.Steed.RiderSlot(client.Player)); // there rider slot this player
+            }
+            else if (!client.Player.IsAlive)
+            {
+                con168[2] &= 0xE3; //11100011
+                con168[2] |= 0x14; //Set dead flag 00010100
+            }
+            //diving is set here
+            con168[16] &= 0xFB; //11 11 10 11
+            if ((con168[16] & 0x02) != 0x00)
+            {
+                client.Player.IsDiving = true;
+                con168[16] |= 0x04;
+            }
+            else
+                client.Player.IsDiving = false;
+
+            con168[16] &= 0xFC; //11 11 11 00 cleared Wireframe & Stealth bits
+            if (client.Player.IsWireframe)
+            {
+                con168[16] |= 0x01;
+            }
+            //stealth is set here
+            if (client.Player.IsStealthed)
+            {
+                con168[16] |= 0x02;
+            }
+
+            con168[17] = (byte)((con168[17] & 0x80) | client.Player.HealthPercent);
+            // zone ID has changed in 1.72, fix bytes 11 and 12
+            byte[] con172 = (byte[])con168.Clone();
+            if (packetVersion == 168)
+            {
+                // client sent v168 pos update packet, fix 172 version
+                con172[10] = 0;
+                con172[11] = con168[10];
+            }
+            else
+            {
+                // client sent v172 pos update packet, fix 168 version
+                con168[10] = con172[11];
+                con168[11] = 0;
+            }
+
+            byte lastByte = (con168.Length == 54) ? con168[53] : (byte)0;
+            UpdateNearbyPlayers(client, con172, lastByte);
+
+            if (client.Player.CharacterClass.ID == (int)eCharacterClass.Warlock)
+            {
+                //Send Chamber effect
+                client.Player.Out.SendWarlockChamberEffect(client.Player);
+            }
+
+            //handle closing of windows
+            //trade window
+            if (client.Player.TradeWindow != null)
+            {
+                if (client.Player.TradeWindow.Partner != null)
+                {
+                    if (!client.Player.IsWithinRadius(client.Player.TradeWindow.Partner, WorldMgr.GIVE_ITEM_DISTANCE))
+                        client.Player.TradeWindow.CloseTrade();
+                }
+            }
+        }
+
+        private static void CheckFallThroughFloor(int realZ, GameClient client)
+        {
+            // move to bind if player fell through the floor
+            if (realZ == 0)
+            {
+                client.Player.MoveTo(
+                    (ushort)client.Player.DBCharacter.BindRegion,
+                    client.Player.DBCharacter.BindXpos,
+                    client.Player.DBCharacter.BindYpos,
+                    (ushort)client.Player.DBCharacter.BindZpos,
+                    (ushort)client.Player.DBCharacter.BindHeading
+                    );
+                return;
+            }
+        }
+
+        private static bool HandleZoneChange(Zone newZone, GameClient client)
+        {
+            bool zoneChange = newZone != client.Player.LastPositionUpdateZone;
+            if (zoneChange)
+            {
+                //If the region changes -> make sure we don't take any falling damage
+                if (client.Player.LastPositionUpdateZone != null && newZone.ZoneRegion.ID != client.Player.LastPositionUpdateZone.ZoneRegion.ID)
+                    client.Player.MaxLastZ = int.MinValue;
+
+                // Update water level and diving flag for the new zone
+                client.Out.SendPlayerPositionAndObjectID();
+                zoneChange = true;
+
+                /*
+                 * "You have entered Burial Tomb."
+                 * "Burial Tomb"
+                 * "Current area is adjusted for one level 1 player."
+                 * "Current area has a 50% instance bonus."
+                 */
+                client.Out.SendMessage(LanguageMgr.GetTranslation(client, "PlayerPositionUpdateHandler.Entered", newZone.Description),
+                    eChatType.CT_System, eChatLoc.CL_SystemWindow);
+                client.Out.SendMessage(newZone.Description, eChatType.CT_ScreenCenterSmaller, eChatLoc.CL_SystemWindow);
+
+                client.Player.LastPositionUpdateZone = newZone;
+            }
+            return zoneChange;
+        }
+
+        private void CheckMovementHack(GameClient client, int coordsPerSec, int tolerance, int jumpDetect, int environmentTick)
+        {
 			if (client.Player.CanFly == false && (coordsPerSec > tolerance || jumpDetect > ServerProperties.Properties.JUMP_TOLERANCE))
 			{
 				bool isHackDetected = true;
@@ -283,9 +446,7 @@ namespace DOL.GS.PacketHandler.Client.v168
 								GameServer.Database.AddObject(b);
 								GameServer.Database.SaveObject(b);
 
-								string message = "";
-								
-								message = "You have been auto kicked and banned due to movement hack detection!";
+                                string message = "You have been auto kicked and banned due to movement hack detection!";
 								for (int i = 0; i < 8; i++)
 								{
 									client.Out.SendMessage(message, eChatType.CT_Help, eChatLoc.CL_SystemWindow);
@@ -298,9 +459,7 @@ namespace DOL.GS.PacketHandler.Client.v168
 							}
 							else
 							{
-								string message = "";
-								
-								message = "You have been auto kicked due to movement hack detection!";
+                                string message = "You have been auto kicked due to movement hack detection!";
 								for (int i = 0; i < 8; i++)
 								{
 									client.Out.SendMessage(message, eChatType.CT_Help, eChatLoc.CL_SystemWindow);
@@ -319,72 +478,10 @@ namespace DOL.GS.PacketHandler.Client.v168
 
 				client.Player.TempProperties.setProperty(LASTCPSTICK, environmentTick);
 			}
-
-			ushort headingflag = packet.ReadShort();
-			client.Player.Heading = (ushort)(headingflag & 0xFFF);
-			ushort flyingflag = packet.ReadShort();
-			byte flags = (byte)packet.ReadByte();
-
-			if (client.Player.X != realX || client.Player.Y != realY)
-			{
-				client.Player.TempProperties.setProperty(LASTMOVEMENTTICK, client.Player.CurrentRegion.Time);
-			}
-			client.Player.X = realX;
-			client.Player.Y = realY;
-			client.Player.Z = realZ;
-
-			if (zoneChange)
-			{
-				// update client zone information for waterlevel and diving
-				client.Out.SendPlayerPositionAndObjectID();
 			}
 
-			// used to predict current position, should be before
-			// any calculation (like fall damage)
-			client.Player.MovementStartTick = Environment.TickCount;
-
-			// Begin ---------- New Area System -----------
-			if (client.Player.CurrentRegion.Time > client.Player.AreaUpdateTick) // check if update is needed
-			{
-				IList oldAreas = client.Player.CurrentAreas;
-
-				// Because we may be in an instance we need to do the area check from the current region
-				// rather than relying on the zone which is in the skinned region.  - Tolakram
-
-				IList newAreas = client.Player.CurrentRegion.GetAreasOfZone(newZone, client.Player);
-
-				// Check for left areas
-				if (oldAreas != null)
-				{
-					foreach (IArea area in oldAreas)
+        private void SpeedAndFlyHackDetection(GameClient client, ushort data, ushort flyingflag, int environmentTick, int realX, int realY, int realZ)
 					{
-						if (!newAreas.Contains(area))
-						{
-							area.OnPlayerLeave(client.Player);
-						}
-					}
-				}
-				// Check for entered areas
-				foreach (IArea area in newAreas)
-				{
-					if (oldAreas == null || !oldAreas.Contains(area))
-					{
-						area.OnPlayerEnter(client.Player);
-					}
-				}
-				// set current areas to new one...
-				client.Player.CurrentAreas = newAreas;
-				client.Player.AreaUpdateTick = client.Player.CurrentRegion.Time + 2000; // update every 2 seconds
-			}
-			// End ---------- New Area System -----------
-
-
-			client.Player.TargetInView = ((flags & 0x10) != 0);
-			client.Player.GroundTargetInView = ((flags & 0x08) != 0);
-			//7  6  5  4  3  2  1 0
-			//15 14 13 12 11 10 9 8
-			//                1 1
-
 			const string SHLASTUPDATETICK = "SHPLAYERPOSITION_LASTUPDATETICK";
 			const string SHLASTFLY = "SHLASTFLY_STRING";
 			const string SHLASTSTATUS = "SHLASTSTATUS_STRING";
@@ -560,10 +657,10 @@ namespace DOL.GS.PacketHandler.Client.v168
 					loc.RegionID = client.Player.CurrentRegionID;
 				}
 			}
+        }
 
-			//**************//
-			//FALLING DAMAGE//
-			//**************//
+        private static void CheckFallingDamage(GameClient client, ushort flyingflag)
+        {
 			if (GameServer.ServerRules.CanTakeFallDamage(client.Player) && client.Player.IsSwimming == false)
 			{
 				int maxLastZ = client.Player.MaxLastZ;
@@ -623,77 +720,15 @@ namespace DOL.GS.PacketHandler.Client.v168
 						client.Player.MaxLastZ = client.Player.Z;
 				}
 			}
-			//**************//
-
-			byte[] con168 = packet.ToArray();
-			//Riding is set here!
-			if (client.Player.Steed != null && client.Player.Steed.ObjectState == GameObject.eObjectState.Active)
-			{
-				client.Player.Heading = client.Player.Steed.Heading;
-
-				con168[2] = 0x18; // Set ride flag 00011000
-				con168[3] = 0; // player speed = 0 while ride
-				con168[12] = (byte)(client.Player.Steed.ObjectID >> 8); //heading = steed ID
-				con168[13] = (byte)(client.Player.Steed.ObjectID & 0xFF);
-				con168[14] = (byte)0;
-				con168[15] = (byte)(client.Player.Steed.RiderSlot(client.Player)); // there rider slot this player
-			}
-			else if (!client.Player.IsAlive)
-			{
-				con168[2] &= 0xE3; //11100011
-				con168[2] |= 0x14; //Set dead flag 00010100
-			}
-			//diving is set here
-			con168[16] &= 0xFB; //11 11 10 11
-			if ((con168[16] & 0x02) != 0x00)
-			{
-				client.Player.IsDiving = true;
-				con168[16] |= 0x04;
-			}
-			else
-				client.Player.IsDiving = false;
-
-			con168[16] &= 0xFC; //11 11 11 00 cleared Wireframe & Stealth bits
-			if (client.Player.IsWireframe)
-			{
-				con168[16] |= 0x01;
-			}
-			//stealth is set here
-			if (client.Player.IsStealthed)
-			{
-				con168[16] |= 0x02;
 			}
 
-			con168[17] = (byte)((con168[17] & 0x80) | client.Player.HealthPercent);
-			// zone ID has changed in 1.72, fix bytes 11 and 12
-			byte[] con172 = (byte[])con168.Clone();
-			if (packetVersion == 168)
+        private static void UpdateNearbyPlayers(GameClient client, byte[] con172, byte lastByte)
 			{
-				// client sent v168 pos update packet, fix 172 version
-				con172[10] = 0;
-				con172[11] = con168[10];
-			}
-			else
-			{
-				// client sent v172 pos update packet, fix 168 version
-				con168[10] = con172[11];
-				con168[11] = 0;
-			}
-
-			GSUDPPacketOut outpak168 = new GSUDPPacketOut(client.Out.GetPacketCode(eServerPackets.PlayerPosition));
-			//Now copy the whole content of the packet
-			outpak168.Write(con168, 0, 18/*con168.Length*/);
-			outpak168.WritePacketLength();
-
 			GSUDPPacketOut outpak172 = new GSUDPPacketOut(client.Out.GetPacketCode(eServerPackets.PlayerPosition));
 			//Now copy the whole content of the packet
 			outpak172.Write(con172, 0, 18/*con172.Length*/);
 			outpak172.WritePacketLength();
 
-			//			byte[] pak168 = outpak168.GetBuffer();
-			//			byte[] pak172 = outpak172.GetBuffer();
-			//			outpak168 = null;
-			//			outpak172 = null;
 			GSUDPPacketOut outpak190 = null;
 
 			foreach (GamePlayer player in client.Player.GetPlayersInRadius(WorldMgr.VISIBILITY_DISTANCE))
@@ -729,39 +764,20 @@ namespace DOL.GS.PacketHandler.Client.v168
 							outpak190.WriteByte(client.Player.ManaPercent);
 							outpak190.WriteByte(client.Player.EndurancePercent);
 							outpak190.FillString(client.Player.CharacterClass.Name, 32);
+                            
 							// roleplay flag, if == 1, show name (RP) with gray color
 							if (client.Player.RPFlag)
 								outpak190.WriteByte(1);
+                            
 							else outpak190.WriteByte(0);
-							outpak190.WriteByte((con168.Length == 54) ? con168[53] : (byte) 0); // send last byte for 190+ packets
+                            outpak190.WriteByte(lastByte); // send last byte for 190+ packets
 							outpak190.WritePacketLength();
 						}
 						player.Out.SendUDPRaw(outpak190);
 					}
-					else if (player.Client.Version >= GameClient.eClientVersion.Version172)
-						player.Out.SendUDPRaw(outpak172);
-					else
-						player.Out.SendUDPRaw(outpak168);
 				}
 				else
 					player.Out.SendObjectDelete(client.Player); //remove the stealthed player from view
-			}
-
-			if (client.Player.CharacterClass.ID == (int)eCharacterClass.Warlock)
-			{
-				//Send Chamber effect
-				client.Player.Out.SendWarlockChamberEffect(client.Player);
-			}
-
-			//handle closing of windows
-			//trade window
-			if (client.Player.TradeWindow != null)
-			{
-				if (client.Player.TradeWindow.Partner != null)
-				{
-					if (!client.Player.IsWithinRadius(client.Player.TradeWindow.Partner, WorldMgr.GIVE_ITEM_DISTANCE))
-						client.Player.TradeWindow.CloseTrade();
-				}
 			}
 		}
 	}

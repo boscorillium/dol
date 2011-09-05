@@ -17,7 +17,6 @@
  *
  */
 using System;
-using System.Linq;
 using DOL.Database;
 using DOL.Database.Attributes;
 

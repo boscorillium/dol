@@ -27,6 +27,8 @@ using DOL.GS.PacketHandler;
 using DOL.GS.ServerProperties;
 using DOL.Network;
 using log4net;
+using DOL;
+using System.IO;
 
 namespace DOL.GS
 {
@@ -454,6 +456,9 @@ namespace DOL.GS
 					Version = ver;
 					Out = lib;
 					PacketProcessor = new PacketProcessor(this);
+
+                    BinaryWriter bs = new BinaryWriter(new FileStream("intro_packet.bin", FileMode.Create));
+                    bs.Write(_pBuf, 0, numBytes);
 				}
 			}
 

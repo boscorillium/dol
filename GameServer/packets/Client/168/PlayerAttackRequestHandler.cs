@@ -40,7 +40,7 @@ namespace DOL.GS.PacketHandler.Client.v168
 		/// <summary>
 		/// Handles change attack mode requests
 		/// </summary>
-		protected class AttackRequestHandler : RegionAction
+		public class AttackRequestHandler : RegionAction
 		{
 			/// <summary>
 			/// True if attack should be started

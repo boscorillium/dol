@@ -259,6 +259,8 @@ namespace DOL.GS.PacketHandler.Client.v168
 									return;
 								}
 
+                                if (Properties.CHECK_ACCOUNT_BOMBING)
+                                {
 								// check for account bombing
 								TimeSpan ts;
 								IList<Account> allAccByIp = GameServer.Database.SelectObjects<Account>("LastLoginIP = '" + ipAddress + "'");
@@ -302,6 +304,7 @@ namespace DOL.GS.PacketHandler.Client.v168
 										return;
 									}
 								}
+                                }
 
 								m_lastAccountCreateTime = DateTime.Now;
 

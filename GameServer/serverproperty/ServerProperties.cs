@@ -1541,6 +1541,8 @@ namespace DOL.GS.ServerProperties
 		[ServerProperty("account", "backup_deleted_characters", "Should we backup deleted characters and not delete associated content?", true)]
 		public static bool BACKUP_DELETED_CHARACTERS;
 
+        [ServerProperty("account", "check_account_bombing", "Should we check to see if account bombing is happening?", true)]
+        public static bool CHECK_ACCOUNT_BOMBING;
 
 		#endregion
 
