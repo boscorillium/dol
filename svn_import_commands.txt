@@ -1,0 +1,5 @@
+git svn clone https://dolserver.svn.sourceforge.net/svnroot/dolserver/DOLSharp --no-minimize-url  -T trunk -b branch -t tag
+
+git remote add origin git@github.com:boscorillium/dol.git
+
+git push origin master
