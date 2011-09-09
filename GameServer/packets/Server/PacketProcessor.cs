@@ -32,6 +32,7 @@ using DOL.Network;
 using log4net;
 using Timer=System.Timers.Timer;
 using System.Collections.Generic;
+using System.IO;
 
 namespace DOL.GS.PacketHandler
 {
@@ -40,6 +41,23 @@ namespace DOL.GS.PacketHandler
 	/// </summary>
 	public class PacketProcessor
 	{
+        private static StreamWriter fs = new StreamWriter(
+            string.Format("packet_log_{0}.log", DateTime.Now.ToFileTime()), 
+            false);
+
+        private static void LogPacket(IPacket p)
+        {
+            try
+            {
+
+                fs.Write(p.ToHumanReadable());
+            }
+            catch (ArgumentOutOfRangeException ex)
+            {
+                log.Error(ex);
+            }
+        }
+		
 		/// <summary>
 		/// Defines a logger for this class.
 		/// </summary>
@@ -85,6 +103,12 @@ namespace DOL.GS.PacketHandler
 			m_asyncUdpCallback = new AsyncCallback(AsyncUdpSendCallback);
 			m_tcpSendBuffer = client.Server.AcquirePacketBuffer();
 			m_udpSendBuffer = client.Server.AcquirePacketBuffer();
+
+            string packetDirectory = Path.Combine(Directory.GetCurrentDirectory(), "packets");
+            if (!Directory.Exists(packetDirectory))
+            {
+                Directory.CreateDirectory(packetDirectory);
+            }
 		}
 
 		#region Last Packets
@@ -236,6 +260,8 @@ namespace DOL.GS.PacketHandler
 		/// <param name="packet">The packet to be sent</param>
 		public void SendTCP(GSTCPPacketOut packet)
 		{
+            LogPacket(packet);
+
 			//Fix the packet size
 			packet.WritePacketLength();
 
@@ -445,6 +471,8 @@ namespace DOL.GS.PacketHandler
 		/// <param name="packet">Packet to send</param>
 		public void SendTCPRaw(GSTCPPacketOut packet)
 		{
+            LogPacket(packet);
+
 			SendTCP((byte[]) packet.GetBuffer().Clone());
 		}
 
@@ -484,6 +512,8 @@ namespace DOL.GS.PacketHandler
 		/// <param name="isForced">Force UDP packet if <code>true</code>, else packet can be sent over TCP</param>
 		public virtual void SendUDP(GSUDPPacketOut packet, bool isForced)
 		{
+            LogPacket(packet);
+
 			//Fix the packet size
 			packet.WritePacketLength();
 
@@ -635,6 +665,8 @@ namespace DOL.GS.PacketHandler
 		/// <param name="packet">Packet to be sent</param>
 		public void SendUDPRaw(GSUDPPacketOut packet)
 		{
+            LogPacket(packet);
+
 			SendUDP((byte[]) packet.GetBuffer().Clone(), false);
 		}
 
@@ -711,6 +743,16 @@ namespace DOL.GS.PacketHandler
 						m_client.Disconnect();
 						return;
 					}
+
+                    byte[] rawPacket = new byte[packetLength];
+                    Array.Copy(buffer, rawPacket, packetLength);
+
+                    string filename = string.Format("packet_{0}", DateTime.Now.Ticks);
+                    filename = Path.Combine(Directory.GetCurrentDirectory(), "packets", filename);
+
+                    BinaryWriter bw = new BinaryWriter(new FileStream(filename, FileMode.Create));
+                    bw.Write(rawPacket, 0, rawPacket.Length);
+                    bw.Close();
 
 					var pak = new GSPacketIn(packetLength - GSPacketIn.HDR_SIZE);
 					pak.Load(buffer, curOffset, packetLength);
@@ -853,6 +895,9 @@ namespace DOL.GS.PacketHandler
 			if (packet == null || m_client == null)
 				return;
 
+            LogPacket(packet);
+
+
 			int code = packet.ID;
 
 			Statistics.BytesIn += packet.PacketSize;
@@ -920,6 +965,14 @@ namespace DOL.GS.PacketHandler
 				long start = Environment.TickCount;
 				try
 				{
+					log.InfoFormat("Logging with packet handler: {0}", packetHandler.GetType().ToString());
+                    string filename = string.Format("packet_{1}_{0}", DateTime.Now.Ticks, packetHandler.GetType().ToString());
+                    filename = Path.Combine(Directory.GetCurrentDirectory(), "packets", filename);
+
+                    BinaryWriter bw = new BinaryWriter(new FileStream(filename, FileMode.Create));
+                    bw.Write(packet.ToArray());
+                    bw.Close();
+
 					packetHandler.HandlePacket(m_client, packet);
 				}
 				catch (Exception e)
