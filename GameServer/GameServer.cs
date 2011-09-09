@@ -580,6 +580,8 @@ namespace DOL.GS
 		/// <returns>True if the server was successfully started</returns>
 		public override bool Start()
 		{
+            DateTime startTime = DateTime.Now;
+
 			try
 			{
 				//	Process pro = Process.GetCurrentProcess();
@@ -596,20 +598,28 @@ namespace DOL.GS
 				if (!UpdateDatabase())
 					return false;
 
+                log.InfoFormat("Elapsed start-up time: {0}",(DateTime.Now - startTime).Duration().TotalSeconds);
+
 				//---------------------------------------------------------------
 				//Try to init the server port
 				if (!InitComponent(InitSocket(), "InitSocket()"))
 					return false;
+
+                log.InfoFormat("Elapsed start-up time: {0}",(DateTime.Now - startTime).Duration().TotalSeconds);
 
 				//---------------------------------------------------------------
 				//Packet buffers
 				if (!InitComponent(AllocatePacketBuffers(), "AllocatePacketBuffers()"))
 					return false;
 
+                log.InfoFormat("Elapsed start-up time: {0}",(DateTime.Now - startTime).Duration().TotalSeconds);
+
 				//---------------------------------------------------------------
 				//Try to start the udp port
 				if (!InitComponent(StartUDP(), "StartUDP()"))
 					return false;
+
+                log.InfoFormat("Elapsed start-up time: {0}",(DateTime.Now - startTime).Duration().TotalSeconds);
 
 				//---------------------------------------------------------------
 				//Try to init the RSA key
@@ -625,13 +635,18 @@ namespace DOL.GS
 				if (!InitComponent(LanguageMgr.Init(), "Multi Language Initialization"))
 					return false;
 
-				//Init the mail manager
+                log.InfoFormat("Elapsed start-up time: {0}",(DateTime.Now - startTime).Duration().TotalSeconds);
+                             
+                //Init the mail manager
 				InitComponent(MailMgr.Init(), "Mail Manager Initialization");
 
+                log.InfoFormat("Elapsed start-up time: {0}",(DateTime.Now - startTime).Duration().TotalSeconds);
 
 				//---------------------------------------------------------------
 				//Load artifact manager
 				InitComponent(ArtifactMgr.Init(), "Artifact Manager");
+
+                log.InfoFormat("Elapsed start-up time: {0}",(DateTime.Now - startTime).Duration().TotalSeconds);
 
 				//---------------------------------------------------------------
 				//Try to initialize the WorldMgr in early state
@@ -639,50 +654,70 @@ namespace DOL.GS
 				if (!InitComponent(WorldMgr.EarlyInit(out regionsData), "World Manager PreInitialization"))
 					return false;
 
+                log.InfoFormat("Elapsed start-up time: {0}",(DateTime.Now - startTime).Duration().TotalSeconds);
+
 				//---------------------------------------------------------------
 				//Try to compile the Scripts
 				if (!InitComponent(RecompileScripts(), "Script compilation"))
 					return false;
+
+                log.InfoFormat("Elapsed start-up time: {0}",(DateTime.Now - startTime).Duration().TotalSeconds);
 
 				//---------------------------------------------------------------
 				//Try to initialize the script components
 				if (!InitComponent(StartScriptComponents(), "Script components"))
 					return false;
 
+                log.InfoFormat("Elapsed start-up time: {0}",(DateTime.Now - startTime).Duration().TotalSeconds);
+
 				//---------------------------------------------------------------
 				//Load all faction managers
 				if (!InitComponent(FactionMgr.Init(), "Faction Managers"))
 					return false;
+
+                log.InfoFormat("Elapsed start-up time: {0}",(DateTime.Now - startTime).Duration().TotalSeconds);
 
 				//---------------------------------------------------------------
 				//Load all calculators
 				if (!InitComponent(GameLiving.LoadCalculators(), "GameLiving.LoadCalculators()"))
 					return false;
 
+                log.InfoFormat("Elapsed start-up time: {0}",(DateTime.Now - startTime).Duration().TotalSeconds);
+
 				//---------------------------------------------------------------
 				//Try to start the npc equipment
 				if (!InitComponent(GameNpcInventoryTemplate.Init(), "Npc Equipment"))
 					return false;
+
+                log.InfoFormat("Elapsed start-up time: {0}",(DateTime.Now - startTime).Duration().TotalSeconds);
 
 				//---------------------------------------------------------------
 				//Try to start the Npc Templates Manager
 				if (!InitComponent(NpcTemplateMgr.Init(), "Npc Templates Manager"))
 					return false;
 
+                log.InfoFormat("Elapsed start-up time: {0}",(DateTime.Now - startTime).Duration().TotalSeconds);
+
 				//---------------------------------------------------------------
 				//Load the house manager
 				if (!InitComponent(HouseMgr.Start(), "House Manager"))
 					return false;
+
+                log.InfoFormat("Elapsed start-up time: {0}",(DateTime.Now - startTime).Duration().TotalSeconds);
 
 				//---------------------------------------------------------------
 				//Load the region managers
 				if (!InitComponent(WorldMgr.StartRegionMgrs(), "Region Managers"))
 					return false;
 
+                log.InfoFormat("Elapsed start-up time: {0}",(DateTime.Now - startTime).Duration().TotalSeconds);
+
 				//---------------------------------------------------------------
 				//Load the area manager
 				if (!InitComponent(AreaMgr.LoadAllAreas(), "Areas"))
 					return false;
+
+                log.InfoFormat("Elapsed start-up time: {0}",(DateTime.Now - startTime).Duration().TotalSeconds);
 
 				//---------------------------------------------------------------
 				//Enable Worldsave timer now
@@ -695,25 +730,35 @@ namespace DOL.GS
 				if (log.IsInfoEnabled)
 					log.Info("World save timer: true");
 
+                log.InfoFormat("Elapsed start-up time: {0}",(DateTime.Now - startTime).Duration().TotalSeconds);
+
 				//---------------------------------------------------------------
 				//Load all boats
 				if (!InitComponent(BoatMgr.LoadAllBoats(), "Boat Manager"))
 					return false;
+
+                log.InfoFormat("Elapsed start-up time: {0}",(DateTime.Now - startTime).Duration().TotalSeconds);
 
 				//---------------------------------------------------------------
 				//Load all guilds
 				if (!InitComponent(GuildMgr.LoadAllGuilds(), "Guild Manager"))
 					return false;
 
+                log.InfoFormat("Elapsed start-up time: {0}",(DateTime.Now - startTime).Duration().TotalSeconds);
+
 				//---------------------------------------------------------------
 				//Load the keep manager
 				if (!InitComponent(KeepMgr.Load(), "Keep Manager"))
 					return false;
 
+                log.InfoFormat("Elapsed start-up time: {0}",(DateTime.Now - startTime).Duration().TotalSeconds);
+
 				//---------------------------------------------------------------
 				//Load the door manager
 				if (!InitComponent(DoorMgr.Init(), "Door Manager"))
 					return false;
+
+                log.InfoFormat("Elapsed start-up time: {0}",(DateTime.Now - startTime).Duration().TotalSeconds);
 
 				//---------------------------------------------------------------
 				//Try to initialize the WorldMgr
@@ -721,30 +766,42 @@ namespace DOL.GS
 					return false;
 				regionsData = null;
 
+                log.InfoFormat("Elapsed start-up time: {0}",(DateTime.Now - startTime).Duration().TotalSeconds);
+
 				//---------------------------------------------------------------
 				//Load the relic manager
 				if (!InitComponent(RelicMgr.Init(), "Relic Manager"))
 					return false;
+
+                log.InfoFormat("Elapsed start-up time: {0}",(DateTime.Now - startTime).Duration().TotalSeconds);
 
 				//---------------------------------------------------------------
 				//Load all weather managers
 				if (!InitComponent(WeatherMgr.Load(), "Weather Managers"))
 					return false;
 
+                log.InfoFormat("Elapsed start-up time: {0}", (DateTime.Now - startTime).Duration().TotalSeconds);
+
 				//---------------------------------------------------------------
 				//Load all crafting managers
 				if (!InitComponent(CraftingMgr.Init(), "Crafting Managers"))
 					return false;
+
+                log.InfoFormat("Elapsed start-up time: {0}",(DateTime.Now - startTime).Duration().TotalSeconds);
 
 				//---------------------------------------------------------------
 				//Load player titles manager
 				if (!InitComponent(PlayerTitleMgr.Init(), "Player Titles Manager"))
 					return false;
 
+                log.InfoFormat("Elapsed start-up time: {0}",(DateTime.Now - startTime).Duration().TotalSeconds);
+
 				//---------------------------------------------------------------
 				//Load behaviour manager
 				if (!InitComponent(BehaviourMgr.Init(), "Behaviour Manager"))
 					return false;
+
+                log.InfoFormat("Elapsed start-up time: {0}",(DateTime.Now - startTime).Duration().TotalSeconds);
 
 				//Load the quest managers if enabled
 				if (Properties.LOAD_QUESTS)
@@ -752,6 +809,8 @@ namespace DOL.GS
 					if (!InitComponent(QuestMgr.Init(), "Quest Manager"))
 						return false;
 				}
+
+                log.InfoFormat("Elapsed start-up time: {0}",(DateTime.Now - startTime).Duration().TotalSeconds);
 
 				//---------------------------------------------------------------
 				//Notify our scripts that everything went fine!
@@ -769,6 +828,8 @@ namespace DOL.GS
 				//Try to start the base server (open server port for connections)
 				if (!InitComponent(base.Start(), "base.Start()"))
 					return false;
+
+                log.InfoFormat("Elapsed start-up time: {0}",(DateTime.Now - startTime).Duration().TotalSeconds);
 
 				GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced);
 
