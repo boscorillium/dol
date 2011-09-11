@@ -318,6 +318,14 @@ namespace DOL.Database
 			return SelectObjects<TObject>(whereExpression, Transaction.IsolationLevel.DEFAULT);
 		}
 
+        public IList<TObject> SelectObjects<TObject>(string whereExpression, params string[] tokens)
+            where TObject : DataObject
+        {
+            return SelectObjects<TObject>(
+                string.Format(whereExpression, tokens), 
+                Transaction.IsolationLevel.DEFAULT);
+        }
+
 		public IList<TObject> SelectObjects<TObject>(string whereExpression, Transaction.IsolationLevel isolation)
 			where TObject : DataObject
 		{

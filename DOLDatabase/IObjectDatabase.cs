@@ -24,6 +24,9 @@ namespace DOL.Database
 		IList<TObject> SelectObjects<TObject>(string whereExpression)
 			where TObject : DataObject;
 
+        IList<TObject> SelectObjects<TObject>(string formattedWhereExpression, params string[] tokens)
+            where TObject : DataObject;
+
 		IList<TObject> SelectObjects<TObject>(string whereExpression, Transaction.IsolationLevel isolation)
 			where TObject : DataObject;
 
