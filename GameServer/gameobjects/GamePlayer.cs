@@ -12160,9 +12160,8 @@ namespace DOL.GS
 		/// </summary>
 		protected virtual void SaveSkillsToCharacter()
 		{
-			string ab = "";
-			string sp = "";
-			string styleList = "";
+            Dictionary<string, CharacterAbility> characterAbilities = new Dictionary<string, CharacterAbility>();
+
 			lock (m_skillList)
 			{
 				foreach (Skill skill in m_skillList)
@@ -12170,38 +12169,41 @@ namespace DOL.GS
 					Ability ability = skill as Ability;
 					if (ability != null)
 					{
-						if (ab.Length > 0)
-						{
-							ab += ";";
-						}
-						ab += ability.KeyName + "|" + ability.Level;
+                        CharacterAbility charAbilities = new CharacterAbility();
+                        charAbilities.CharacterName = Name;
+                        charAbilities.Ability = ability.KeyName;
+                        charAbilities.Level = ability.Level;
+
+                        characterAbilities[charAbilities.Ability] = charAbilities;
 					}
 				}
 			}
+
 			lock (m_specList.SyncRoot)
 			{
 				foreach (Specialization spec in m_specList)
 				{
-					if (sp.Length > 0)
-					{
-						sp += ";";
+                    CharacterSpec charSpec = new CharacterSpec();
+                    charSpec.CharacterName = Name;
+                    charSpec.Spec = spec.KeyName;
+                    charSpec.Level = spec.Level;
+                    GameServer.Database.SaveObject(charSpec);
 					}
-					sp += spec.KeyName + "|" + spec.Level;
 				}
-			}
-			lock (lockStyleList)
+
+            Dictionary<string, CharacterSpellLine> charSpellLines = new Dictionary<string, CharacterSpellLine>();
+            lock (lockSpellLinesList)
 			{
-				foreach (Style style in m_styles.Values)
+                foreach (SpellLine line in m_spellLines)
 				{
-					if (styleList.Length > 0)
-					{
-						styleList += ";";
+                    CharacterSpellLine spellLines = new CharacterSpellLine();
+                    spellLines.CharacterName = Name;
+                    spellLines.SpellLine = line.KeyName;
+                    spellLines.Level = line.Level;
+                    charSpellLines.Add(line.KeyName, spellLines);
 					}
-					styleList += style.ID;
 				}
-			}
-			string disabledSpells = "";
-			string disabledAbilities = "";
+
 			ICollection disabledSkills = GetAllDisabledSkills();
 			foreach (Skill skill in disabledSkills)
 			{
@@ -12210,16 +12212,21 @@ namespace DOL.GS
 				if (skill is Spell)
 				{
 					Spell spl = (Spell)skill;
-					if (disabledSpells.Length > 0)
-						disabledSpells += ";";
-					disabledSpells += spl.ID + "|" + duration;
+
+                    if (charSpellLines.ContainsKey(spl.Name))
+                    {
+                        charSpellLines[spl.Name].Enabled = false;
+                    }
+
 				}
 				else if (skill is Ability)
 				{
 					Ability ability = (Ability)skill;
-					if (disabledAbilities.Length > 0)
-						disabledAbilities += ";";
-					disabledAbilities += ability.KeyName + "|" + duration;
+
+                    if (characterAbilities.ContainsKey(ability.KeyName))
+                    {
+                        characterAbilities[ability.KeyName].Enabled = false;
+                    }
 				}
 				else
 				{
@@ -12227,22 +12234,16 @@ namespace DOL.GS
 						log.Warn(Name + ": Can't save disabled skill " + skill.GetType().ToString());
 				}
 			}
-			StringBuilder spellLines = new StringBuilder();
-			lock (lockSpellLinesList)
-			{
-				foreach (SpellLine line in m_spellLines)
-				{
-					if (spellLines.Length > 0)
-						spellLines.Append(';');
-					spellLines.AppendFormat("{0}|{1}", line.KeyName, line.Level);
-				}
-			}
-			DBCharacter.SerializedAbilities = ab;
-			DBCharacter.SerializedSpecs = sp;
-			DBCharacter.SerializedSpellLines = spellLines.ToString();
-			DBCharacter.DisabledSpells = disabledSpells;
-			DBCharacter.DisabledAbilities = disabledAbilities;
 
+            foreach (var charAb in characterAbilities.Values)
+			{
+                GameServer.Database.SaveObject(charAb);
+				}
+
+            foreach (var charSL in charSpellLines.Values)
+				{
+                GameServer.Database.SaveObject(charSL);
+			}
 		}
 
 		/// <summary>
@@ -12260,6 +12261,14 @@ namespace DOL.GS
 			//Load up the player skills
 			//1. Load all abilities
 			//2. Disable appropriate abilities
+
+            var abilities = GameServer.Database.SelectObjects<CharacterAbility>("CharacterName = '" + Name + "'");
+            foreach (CharacterAbility ability in abilities)
+            {
+                AddAbility(SkillBase.GetAbility(ability.Ability, ability.Level));
+            }
+
+            /*
 			lock (m_skillList)
 			{
 				tmpStr = character.SerializedAbilities;
@@ -12298,11 +12307,13 @@ namespace DOL.GS
 					}
 				}
 			}
+             */
 			#endregion
 
 			#region Load Specs
 			lock (m_specList.SyncRoot)
 			{
+                /*
 				tmpStr = character.SerializedSpecs;
 				if (tmpStr != null && tmpStr.Length > 0)
 				{
@@ -12335,6 +12346,7 @@ namespace DOL.GS
 						}
 					}
 				}
+                 */
 			}
 			#endregion
 
@@ -12373,6 +12385,7 @@ namespace DOL.GS
 			Hashtable disabledSpells = new Hashtable();
 
 			//Load the disabled spells
+            /*
 			string tmpStr = character.DisabledSpells;
 			if (tmpStr != null && tmpStr.Length > 0)
 			{
@@ -12391,9 +12404,26 @@ namespace DOL.GS
 						log.Error(Name + ": error in loading disabled spells => '" + tmpStr + "'");
 				}
 			}
+             */
+
+            var spellLines = GameServer.Database.SelectObjects<CharacterSpellLine>("Name = '{0}'", Name);
 
 			lock (lockSpellLinesList)
 			{
+                foreach (CharacterSpellLine spl in spellLines)
+                {
+                    if (spl.SpellLine == ChampionSpellLineName)
+                        continue; // LoadChampionSpells takes care of adding these spell lines
+
+                    SpellLine splLine = SkillBase.GetSpellLine(spl.SpellLine, false);
+
+                    if (splLine != null)
+                    {
+                        splLine.Level = spl.Level;
+                        AddSpellLine(splLine);
+                    }
+                }
+                /*
 				tmpStr = character.SerializedSpellLines;
 				if (tmpStr != null && tmpStr.Length > 0)
 				{
@@ -12433,6 +12463,7 @@ namespace DOL.GS
 						}
 					}
 				}
+            */
 
 				LoadChampionSpells(disabledSpells);
 			}

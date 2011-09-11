@@ -6048,6 +6048,14 @@ namespace DOL.GS
 					{
 						isNewAbility = true;
 						m_abilities.Add(ability.KeyName, ability);
+
+                        CharacterAbility charAbilities = new CharacterAbility();
+                        charAbilities.CharacterName = Name;
+                        charAbilities.Ability = ability.KeyName;
+                        charAbilities.Level = ability.Level;
+                        charAbilities.Enabled = true;
+                        GameServer.Database.AddObject(charAbilities);
+
 						m_skillList.Add(ability);
 						ability.Activate(this, sendUpdates);
 					}

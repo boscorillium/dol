@@ -85,7 +85,7 @@ namespace DOL
 				this.DeathTime = character.DeathTime;
 				this.Dexterity = character.Dexterity;
 				this.Direction = character.Direction;
-				this.DisabledAbilities = character.DisabledAbilities;
+				//this.DisabledAbilities = character.DisabledAbilities;
 				this.DisabledSpells = character.DisabledSpells;
 				this.Empathy = character.Empathy;
 				this.Endurance = character.Endurance;
@@ -161,13 +161,10 @@ namespace DOL
 				this.RespecBought = character.RespecBought;
 				this.RPFlag = character.RPFlag;
 				this.SafetyFlag = character.SafetyFlag;
-				this.SerializedAbilities = character.SerializedAbilities;
 				this.SerializedCraftingSkills = character.SerializedCraftingSkills;
 				this.SerializedFriendsList = character.SerializedFriendsList;
 				this.SerializedIgnoreList = character.SerializedIgnoreList;
 				this.SerializedRealmAbilities = character.SerializedRealmAbilities;
-				this.SerializedSpecs = character.SerializedSpecs;
-				this.SerializedSpellLines = character.SerializedSpellLines;
 				this.ShowGuildLogins = character.ShowGuildLogins;
 				this.ShowXFireInfo = character.ShowXFireInfo;
 				this.Silver = character.Silver;

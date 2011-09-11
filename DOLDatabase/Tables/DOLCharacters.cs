@@ -129,13 +129,15 @@ namespace DOL
 			// here are skills stored. loading and saving skills of player is done automatically and
 			// these fields should NOT manipulated or used otherwise
 			// instead use the skill access methods on GamePlayer
-			private string m_abilities = "";	// comma separated string of ability keynames and levels eg "sprint,0,evade,1"
+			//private string m_abilities = "";	// comma separated string of ability keynames and levels eg "sprint,0,evade,1"
+			
 			private string m_specs = "";			// comma separated string of spec keynames and levels like "earth_magic,5,slash,10"
 			private string m_spellLines = "";		// serialized string of spell lines and levels like "Spirit Animation|5;Vivification|7"
 			private string m_realmAbilities = ""; // for later use
 			private string m_craftingSkills = "";// crafting skills
 			private string m_disabledSpells = "";
-			private string m_disabledAbilities = "";
+			
+            //private string m_disabledAbilities = "";
 
 			private string m_friendList = ""; //comma seperated string of friends
 			private string m_ignoreList = ""; //comma seperated string of ignored Players
@@ -1259,6 +1261,7 @@ namespace DOL
 			/// <summary>
 			/// The abilities of character
 			/// </summary>
+            /*
 			[DataElement(AllowDbNull = true)]
 			public string SerializedAbilities
 			{
@@ -1269,7 +1272,9 @@ namespace DOL
 					m_abilities = value;
 				}
 			}
+            */
 
+            /*
 			/// <summary>
 			/// The specs of character
 			/// </summary>
@@ -1297,6 +1302,7 @@ namespace DOL
 					Dirty = true;
 				}
 			}
+            */
 
 			/// <summary>
 			/// the realm abilities of character
@@ -1322,6 +1328,7 @@ namespace DOL
 				set { m_disabledSpells = value; }
 			}
 
+            /*
 			/// <summary>
 			/// The abilities unallowed to character
 			/// </summary>
@@ -1331,6 +1338,7 @@ namespace DOL
 				get { return m_disabledAbilities; }
 				set { m_disabledAbilities = value; }
 			}
+            */
 
 			/// <summary>
 			/// The Friend list
