@@ -28,6 +28,7 @@ using log4net;
 using DOL.GS.Behaviour.Attributes;
 using DOL.GS.Behaviour;
 using DOL.GS.Quests.Atlantis;
+using Mono.Addins;
 
 namespace DOL.GS.Quests
 {
@@ -61,6 +62,8 @@ namespace DOL.GS.Quests
         private static readonly IDictionary m_questTriggerMap = new HybridDictionary();
         private static readonly IDictionary m_questRequirementMap = new HybridDictionary();
 
+        private static readonly string QuestExtensionPoint = "/DawnOfLight/GameServer/Quest";
+
 		#endregion
 
         public static bool Init()
@@ -82,18 +85,17 @@ namespace DOL.GS.Quests
                         if (log.IsInfoEnabled)
                             log.Info("Registering quest: " + type.FullName);
                         RegisterQuestType(type);
-						if (type.IsSubclassOf(typeof(ArtifactQuest)))
-						{
-							log.Info(String.Format("Initialising quest: {0}", type.FullName));
-							type.InvokeMember("Init",
-								BindingFlags.InvokeMethod,
-								null,
-								null,
-								new object[] { });
 						}
                     }
                 }
+
+            // Load quests from the extension point
+            ExtensionNodeList nodeList = AddinManager.GetExtensionNodes(QuestExtensionPoint);
+            foreach (TypeExtensionNode node in nodeList)
+            {
+                RegisterQuestType(node.Type);
             }
+
             return true;
         }
 

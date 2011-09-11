@@ -21,6 +21,7 @@ using System.Collections;
 using System.IO;
 using System.Threading;
 using DOL.DOLServer.Actions;
+using Mono.Addins;
 
 namespace DOL.DOLServer
 {
@@ -150,6 +151,9 @@ namespace DOL.DOLServer
 		[STAThread]
 		private static void Main(string[] args)
 		{
+            AddinManager.Initialize(Directory.GetCurrentDirectory());
+		    AddinManager.Registry.Update(null);
+
 			// Graveen: the lib path append is now specified in the .config file.
 			//AppDomain.CurrentDomain.AppendPrivatePath("."+Path.DirectorySeparatorChar+"lib");
 

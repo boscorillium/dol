@@ -31,6 +31,7 @@ using DOL.GS.ServerRules;
 using DOL.GS.Spells;
 using DOL.GS.Commands;
 using DOL.Events;
+using Mono.Addins;
 using log4net;
 using Microsoft.CSharp;
 using Microsoft.VisualBasic;
@@ -46,6 +47,8 @@ namespace DOL.GS
 
 		private static Dictionary<string, Assembly> m_compiledScripts = new Dictionary<string, Assembly>();
 		private static Dictionary<string, ConstructorInfo> m_spellhandlerConstructorCache = new Dictionary<string, ConstructorInfo>();
+
+        private static readonly string CommandExtensionPoint = "/DawnOfLight/GameServer/Command";
 
 		/// <summary>
 		/// This class will hold all info about a gamecommand
@@ -202,12 +205,32 @@ namespace DOL.GS
 			{
 				if (log.IsDebugEnabled)
 					log.Debug("ScriptMgr: Searching for commands in " + script.GetName());
+				
 				// Walk through each type in the assembly
 				foreach (Type type in script.GetTypes())
 				{
+					ProcessCommand(quiet, disabledarray, type);
+				}
+			}
+			
+			int extensionCount = 0;
+		    var extensionNodeList = AddinManager.GetExtensionNodes(CommandExtensionPoint);
+		    foreach (TypeExtensionNode node in extensionNodeList)
+		    {
+				extensionCount++;
+		        ProcessCommand(quiet, disabledarray, node.Type);
+		    }
+
+		    log.Info("Loaded " + m_gameCommands.Count + " commands!");
+			log.Info (extensionCount + " of those were from extensions!");
+			return true;
+		}
+
+	    private static void ProcessCommand(bool quiet, string[] disabledarray, Type type)
+	    {
 					// Pick up a class
-					if (type.IsClass != true) continue;
-					if (type.GetInterface("DOL.GS.Commands.ICommandHandler") == null) continue;
+	        if (type.IsClass != true) return;
+	        if (type.GetInterface("DOL.GS.Commands.ICommandHandler") == null) return;
 
 					try
 					{
@@ -230,11 +253,13 @@ namespace DOL.GS
 
 							if (m_gameCommands.ContainsKey(attrib.Cmd))
 							{
-								log.Info(attrib.Cmd + " from " + script.GetName() + " has been suppressed, a command of that type already exists!");
+                        log.Info(attrib.Cmd + " from " + type.Assembly.GetName().Name +
+	                             " has been suppressed, a command of that type already exists!");
 								continue;
 							}
 							if (log.IsDebugEnabled && quiet == false)
-								log.Debug("ScriptMgr: Command - '" + attrib.Cmd + "' - (" + attrib.Description + ") required plvl:" + attrib.Level);
+	                    log.Debug("ScriptMgr: Command - '" + attrib.Cmd + "' - (" + attrib.Description + ") required plvl:" +
+	                              attrib.Level);
 
 							GameCommand cmd = new GameCommand();
 							cmd.Usage = attrib.Usage;
@@ -258,10 +283,6 @@ namespace DOL.GS
 							log.Error("LoadCommands", e);
 					}
 				}
-			}
-			log.Info("Loaded " + m_gameCommands.Count + " commands!");
-			return true;
-		}
 
 		/// <summary>
 		/// Called when a command needs to be handled
