@@ -577,12 +577,9 @@ namespace DOL.GS.PacketHandler.Client.v168
 							outpak190.WriteByte((con168.Length == 54) ? con168[53] : (byte) 0); // send last byte for 190+ packets
 							outpak190.WritePacketLength();
 						}
+
 						player.Out.SendUDPRaw(outpak190);
 					}
-					else if (player.Client.Version >= GameClient.eClientVersion.Version172)
-						player.Out.SendUDPRaw(outpak172);
-					else
-						player.Out.SendUDPRaw(outpak168);
 				}
 				else
 					player.Out.SendObjectDelete(client.Player); //remove the stealthed player from view
