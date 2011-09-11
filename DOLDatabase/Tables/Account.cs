@@ -228,6 +228,20 @@ namespace DOL
 			/// </summary>
 			[Relation(LocalField = "Name", RemoteField = "Account", AutoLoad = true, AutoDelete = true)]
 			public DBBannedAccount[] BannedAccount;
+
+            public int GetCharacterIndexByName(string charName)
+            {
+                for (int i = 0; i < Characters.Length; i++)
+                {
+                    if (Characters[i] != null
+                        && Characters[i].Name == charName)
+                    {
+                        return i;
+                    }
+                }
+				
+				return -1;
+            }
 		}
 	}
 }
