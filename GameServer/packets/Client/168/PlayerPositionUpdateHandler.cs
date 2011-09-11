@@ -59,15 +59,6 @@ namespace DOL.GS.PacketHandler.Client.v168
 				return;
 
 			int environmentTick = Environment.TickCount;
-			int packetVersion;
-			if (client.Version > GameClient.eClientVersion.Version171)
-			{
-				packetVersion = 172;
-			}
-			else
-			{
-				packetVersion = 168;
-			}
 
 			int oldSpeed = client.Player.CurrentSpeed;
 
@@ -75,10 +66,6 @@ namespace DOL.GS.PacketHandler.Client.v168
 			packet.Skip(2); //PID
 			ushort data = packet.ReadShort();
 			int speed = (data & 0x1FF);
-
-			//			if(!GameServer.ServerRules.IsAllowedDebugMode(client)
-			//				&& (speed > client.Player.MaxSpeed + SPEED_TOL))
-
 
 			if ((data & 0x200) != 0)
 				speed = -speed;
@@ -99,15 +86,26 @@ namespace DOL.GS.PacketHandler.Client.v168
 			ushort xOffsetInZone = packet.ReadShort();
 			ushort yOffsetInZone = packet.ReadShort();
 			ushort currentZoneID;
-			if (packetVersion == 168)
-			{
-				currentZoneID = (ushort)packet.ReadByte();
-				packet.Skip(1); //0x00 padding for zoneID
-			}
-			else
-			{
+				
 				currentZoneID = packet.ReadShort();
-			}
+
+            ushort headingflag = packet.ReadShort();
+            client.Player.Heading = (ushort)(headingflag & 0xFFF);
+            ushort flyingflag = packet.ReadShort();
+            byte flags = (byte)packet.ReadByte();
+
+            int status = (data & 0x1FF ^ data) >> 8;
+            int fly = (flyingflag & 0x1FF ^ flyingflag) >> 8;
+
+            bool targetInView = ((flags & 0x10) != 0);
+            bool groundTargetInView = ((flags & 0x08) != 0);
+
+            int state = ((data >> 10) & 7);
+            bool isClimbing = (state == 7);
+            bool isSwimming = (state == 1);
+
+            bool isDebugState = state == 3;
+            /**************************************** END PACKET DATA READING / TRANSLATING *****************/
 
 
 			//Dinberg - Instance considerations.
@@ -161,25 +159,7 @@ namespace DOL.GS.PacketHandler.Client.v168
 			bool zoneChange = newZone != client.Player.LastPositionUpdateZone;
 			if (zoneChange)
 			{
-				//If the region changes -> make sure we don't take any falling damage
-				if (client.Player.LastPositionUpdateZone != null && newZone.ZoneRegion.ID != client.Player.LastPositionUpdateZone.ZoneRegion.ID)
-					client.Player.MaxLastZ = int.MinValue;
-
-				// Update water level and diving flag for the new zone
-				client.Out.SendPlayerPositionAndObjectID();
-				zoneChange = true;
-
-				/*
-				 * "You have entered Burial Tomb."
-				 * "Burial Tomb"
-				 * "Current area is adjusted for one level 1 player."
-				 * "Current area has a 50% instance bonus."
-				 */
-				client.Out.SendMessage(LanguageMgr.GetTranslation(client, "PlayerPositionUpdateHandler.Entered", newZone.Description),
-				                       eChatType.CT_System, eChatLoc.CL_SystemWindow);
-				client.Out.SendMessage(newZone.Description, eChatType.CT_ScreenCenterSmaller, eChatLoc.CL_SystemWindow);
-
-				client.Player.LastPositionUpdateZone = newZone;
+                ZoneChange(client, newZone);
 			}
 
 			int coordsPerSec = 0;
@@ -271,47 +251,7 @@ namespace DOL.GS.PacketHandler.Client.v168
 
 						if (ServerProperties.Properties.ENABLE_MOVEDETECT)
 						{
-							if (ServerProperties.Properties.BAN_HACKERS && false) // banning disabled until this technique is proven accurate
-							{
-								DBBannedAccount b = new DBBannedAccount();
-								b.Author = "SERVER";
-								b.Ip = client.TcpEndpointAddress;
-								b.Account = client.Account.Name;
-								b.DateBan = DateTime.Now;
-								b.Type = "B";
-								b.Reason = string.Format("Autoban MOVEHACK:(CPS:{0}, JT:{1}) on player:{2}", coordsPerSec, jumpDetect, client.Player.Name);
-								GameServer.Database.AddObject(b);
-								GameServer.Database.SaveObject(b);
-
-								string message = "";
-								
-								message = "You have been auto kicked and banned due to movement hack detection!";
-								for (int i = 0; i < 8; i++)
-								{
-									client.Out.SendMessage(message, eChatType.CT_Help, eChatLoc.CL_SystemWindow);
-									client.Out.SendMessage(message, eChatType.CT_Help, eChatLoc.CL_ChatWindow);
-								}
-
-								client.Out.SendPlayerQuit(true);
-								client.Player.SaveIntoDatabase();
-								client.Player.Quit(true);
-							}
-							else
-							{
-								string message = "";
-								
-								message = "You have been auto kicked due to movement hack detection!";
-								for (int i = 0; i < 8; i++)
-								{
-									client.Out.SendMessage(message, eChatType.CT_Help, eChatLoc.CL_SystemWindow);
-									client.Out.SendMessage(message, eChatType.CT_Help, eChatLoc.CL_ChatWindow);
-								}
-
-								client.Out.SendPlayerQuit(true);
-								client.Player.SaveIntoDatabase();
-								client.Player.Quit(true);
-							}
-							client.Disconnect();
+                            MoveDetect(client, coordsPerSec, jumpDetect);
 							return;
 						}
 					}
@@ -319,11 +259,6 @@ namespace DOL.GS.PacketHandler.Client.v168
 
 				client.Player.TempProperties.setProperty(LASTCPSTICK, environmentTick);
 			}
-
-			ushort headingflag = packet.ReadShort();
-			client.Player.Heading = (ushort)(headingflag & 0xFFF);
-			ushort flyingflag = packet.ReadShort();
-			byte flags = (byte)packet.ReadByte();
 
 			if (client.Player.X != realX || client.Player.Y != realY)
 			{
@@ -346,41 +281,13 @@ namespace DOL.GS.PacketHandler.Client.v168
 			// Begin ---------- New Area System -----------
 			if (client.Player.CurrentRegion.Time > client.Player.AreaUpdateTick) // check if update is needed
 			{
-				IList oldAreas = client.Player.CurrentAreas;
-
-				// Because we may be in an instance we need to do the area check from the current region
-				// rather than relying on the zone which is in the skinned region.  - Tolakram
-
-				IList newAreas = client.Player.CurrentRegion.GetAreasOfZone(newZone, client.Player);
-
-				// Check for left areas
-				if (oldAreas != null)
-				{
-					foreach (IArea area in oldAreas)
-					{
-						if (!newAreas.Contains(area))
-						{
-							area.OnPlayerLeave(client.Player);
-						}
-					}
-				}
-				// Check for entered areas
-				foreach (IArea area in newAreas)
-				{
-					if (oldAreas == null || !oldAreas.Contains(area))
-					{
-						area.OnPlayerEnter(client.Player);
-					}
-				}
-				// set current areas to new one...
-				client.Player.CurrentAreas = newAreas;
-				client.Player.AreaUpdateTick = client.Player.CurrentRegion.Time + 2000; // update every 2 seconds
+                NewAreaSystem(client, newZone);
 			}
 			// End ---------- New Area System -----------
 
 
-			client.Player.TargetInView = ((flags & 0x10) != 0);
-			client.Player.GroundTargetInView = ((flags & 0x08) != 0);
+			client.Player.TargetInView = targetInView;
+			client.Player.GroundTargetInView = groundTargetInView;
 			//7  6  5  4  3  2  1 0
 			//15 14 13 12 11 10 9 8
 			//                1 1
@@ -392,8 +299,6 @@ namespace DOL.GS.PacketHandler.Client.v168
 			int SHlastFly = client.Player.TempProperties.getProperty<int>(SHLASTFLY);
 			int SHlastStatus = client.Player.TempProperties.getProperty<int>(SHLASTSTATUS);
 			int SHcount = client.Player.TempProperties.getProperty<int>(SHSPEEDCOUNTER);
-			int status = (data & 0x1FF ^ data) >> 8;
-			int fly = (flyingflag & 0x1FF ^ flyingflag) >> 8;
 
 			if (client.Player.IsJumping)
 			{
@@ -416,18 +321,15 @@ namespace DOL.GS.PacketHandler.Client.v168
 
 						if (SHcount % 5 == 0)
 						{
-							StringBuilder builder = new StringBuilder();
-							builder.Append("TEST_SH_DETECT[");
-							builder.Append(SHcount);
-							builder.Append("] (");
-							builder.Append(environmentTick - SHlastTick);
-							builder.Append("): CharName=");
-							builder.Append(client.Player.Name);
-							builder.Append(" Account=");
-							builder.Append(client.Account.Name);
-							builder.Append(" IP=");
-							builder.Append(client.TcpEndpointAddress);
-							GameServer.Instance.LogCheatAction(builder.ToString());
+                            string cheatActionString = string.Format(
+                                "TEST_SH_DETECT[{0}] ({1}): CharName={2} Account={3} IP={4}",
+                                SHcount,
+                                environmentTick - SHlastTick,
+                                client.Player.Name,
+                                client.Account.Name,
+                                client.TcpEndpointAddress);
+
+                            GameServer.Instance.LogCheatAction(cheatActionString);
 
 							if (client.Account.PrivLevel > 1)
 							{
@@ -439,46 +341,7 @@ namespace DOL.GS.PacketHandler.Client.v168
 
 							if ((client.Account.PrivLevel == 1) && SHcount >= ServerProperties.Properties.SPEEDHACK_TOLERANCE)
 							{
-								if (ServerProperties.Properties.BAN_HACKERS)
-								{
-									DBBannedAccount b = new DBBannedAccount();
-									b.Author = "SERVER";
-									b.Ip = client.TcpEndpointAddress;
-									b.Account = client.Account.Name;
-									b.DateBan = DateTime.Now;
-									b.Type = "B";
-									b.Reason = string.Format("Autoban SH:({0},{1}) on player:{2}", SHcount, environmentTick - SHlastTick, client.Player.Name);
-									GameServer.Database.AddObject(b);
-									GameServer.Database.SaveObject(b);
-
-									string message = "";
-									
-									message = "You have been auto kicked and banned for speed hacking!";
-									for (int i = 0; i < 8; i++)
-									{
-										client.Out.SendMessage(message, eChatType.CT_Help, eChatLoc.CL_SystemWindow);
-										client.Out.SendMessage(message, eChatType.CT_Help, eChatLoc.CL_ChatWindow);
-									}
-
-									client.Out.SendPlayerQuit(true);
-									client.Player.SaveIntoDatabase();
-									client.Player.Quit(true);
-								}
-								else
-								{
-									string message = "";
-									
-									message = "You have been auto kicked for speed hacking!";
-									for (int i = 0; i < 8; i++)
-									{
-										client.Out.SendMessage(message, eChatType.CT_Help, eChatLoc.CL_SystemWindow);
-										client.Out.SendMessage(message, eChatType.CT_Help, eChatLoc.CL_ChatWindow);
-									}
-
-									client.Out.SendPlayerQuit(true);
-									client.Player.SaveIntoDatabase();
-									client.Player.Quit(true);
-								}
+                                CheckBanSpeedHacker(client, environmentTick, SHlastTick, SHcount);
 								client.Disconnect();
 								return;
 							}
@@ -497,21 +360,19 @@ namespace DOL.GS.PacketHandler.Client.v168
 				SHlastTick = environmentTick;
 			}
 
-			int state = ((data >> 10) & 7);
-			client.Player.IsClimbing = (state == 7);
-			client.Player.IsSwimming = (state == 1);
-			if (state == 3 && client.Player.TempProperties.getProperty<object>(GamePlayer.DEBUG_MODE_PROPERTY, null) == null && !client.Player.CanFly) //debugFly on, but player not do /debug on (hack)
-			{
-				StringBuilder builder = new StringBuilder();
-				builder.Append("HACK_FLY");
-				builder.Append(": CharName=");
-				builder.Append(client.Player.Name);
-				builder.Append(" Account=");
-				builder.Append(client.Account.Name);
-				builder.Append(" IP=");
-				builder.Append(client.TcpEndpointAddress);
-				GameServer.Instance.LogCheatAction(builder.ToString());
+			client.Player.IsClimbing = isClimbing;
+			client.Player.IsSwimming = isSwimming;
+
+			if (isDebugState && client.Player.TempProperties.getProperty<object>(GamePlayer.DEBUG_MODE_PROPERTY, null) == null && !client.Player.CanFly) //debugFly on, but player not do /debug on (hack)
 				{
+                string cheatActionString = string.Format(
+                    "HACK_FLY: CharName={0} Account={1} IP={2}",
+                    client.Player.Name,
+                    client.Account.Name,
+                    client.TcpEndpointAddress);
+                
+                GameServer.Instance.LogCheatAction(cheatActionString);
+				
 					if (ServerProperties.Properties.BAN_HACKERS)
 					{
 						DBBannedAccount b = new DBBannedAccount();
@@ -536,7 +397,6 @@ namespace DOL.GS.PacketHandler.Client.v168
 					client.Disconnect();
 					return;
 				}
-			}
 
 			SHlastFly = fly;
 			SHlastStatus = status;
@@ -566,62 +426,7 @@ namespace DOL.GS.PacketHandler.Client.v168
 			//**************//
 			if (GameServer.ServerRules.CanTakeFallDamage(client.Player) && client.Player.IsSwimming == false)
 			{
-				int maxLastZ = client.Player.MaxLastZ;
-				/* Are we on the ground? */
-				if ((flyingflag >> 15) != 0)
-				{
-					int safeFallLevel = client.Player.GetAbilityLevel(Abilities.SafeFall);
-					int fallSpeed = (flyingflag & 0xFFF) - 100 * safeFallLevel; // 0x7FF fall speed and 0x800 bit = fall speed overcaped
-					int fallMinSpeed = 400;
-					int fallDivide = 6;
-					if (client.Version >= GameClient.eClientVersion.Version188)
-					{
-						fallMinSpeed = 500;
-						fallDivide = 15;
-					}
-					if (fallSpeed > fallMinSpeed)
-					{
-						client.Out.SendMessage(LanguageMgr.GetTranslation(client, "PlayerPositionUpdateHandler.FallingDamage"),
-						                       eChatType.CT_Damaged, eChatLoc.CL_SystemWindow);
-
-						int fallPercent = Math.Min(99, (fallSpeed - (fallMinSpeed + 1)) / fallDivide);
-						if (fallPercent > 0)
-						{
-							if (safeFallLevel > 0)
-								client.Out.SendMessage(LanguageMgr.GetTranslation(client, "PlayerPositionUpdateHandler.SafeFall"), eChatType.CT_Damaged, eChatLoc.CL_SystemWindow);
-							
-							client.Out.SendMessage(LanguageMgr.GetTranslation(client, "PlayerPositionUpdateHandler.FallPercent", fallPercent),
-							                       eChatType.CT_Damaged, eChatLoc.CL_SystemWindow);
-
-							client.Player.Endurance -= client.Player.MaxEndurance * fallPercent / 100;
-							double damage = (0.01 * fallPercent * (client.Player.MaxHealth - 1));
-							// [Freya] Nidel: CloudSong falling damage reduction
-							Effects.GameSpellEffect cloudSongFall = Spells.SpellHandler.FindEffectOnTarget(client.Player, "CloudsongFall");
-							if(cloudSongFall != null)
-							{
-								damage -= (damage * cloudSongFall.Spell.Value ) * 0.01;
-							}
-							client.Player.TakeDamage(null, eDamageType.Falling, (int)damage, 0);
-
-							//Update the player's health to all other players around
-							foreach (GamePlayer player in client.Player.GetPlayersInRadius(WorldMgr.VISIBILITY_DISTANCE))
-								player.Out.SendCombatAnimation(null, client.Player, 0, 0, 0, 0, 0, client.Player.HealthPercent);
-						}
-						
-						client.Out.SendMessage(LanguageMgr.GetTranslation(client, "PlayerPositionUpdateHandler.Endurance"),
-						                       eChatType.CT_Damaged, eChatLoc.CL_SystemWindow);
-					}
-					client.Player.MaxLastZ = client.Player.Z;
-				}
-				else
-				{
-					// always set Z if on the ground
-					if (flyingflag == 0)
-						client.Player.MaxLastZ = client.Player.Z;
-					// set Z if in air and higher than old Z
-					else if (maxLastZ < client.Player.Z)
-						client.Player.MaxLastZ = client.Player.Z;
-				}
+                CheckFallingDamage(client, flyingflag);
 			}
 			//**************//
 
@@ -667,45 +472,81 @@ namespace DOL.GS.PacketHandler.Client.v168
 			con168[17] = (byte)((con168[17] & 0x80) | client.Player.HealthPercent);
 			// zone ID has changed in 1.72, fix bytes 11 and 12
 			byte[] con172 = (byte[])con168.Clone();
-			if (packetVersion == 168)
-			{
-				// client sent v168 pos update packet, fix 172 version
-				con172[10] = 0;
-				con172[11] = con168[10];
-			}
-			else
-			{
+
 				// client sent v172 pos update packet, fix 168 version
 				con168[10] = con172[11];
 				con168[11] = 0;
-			}
 
-			GSUDPPacketOut outpak168 = new GSUDPPacketOut(client.Out.GetPacketCode(eServerPackets.PlayerPosition));
-			//Now copy the whole content of the packet
-			outpak168.Write(con168, 0, 18/*con168.Length*/);
-			outpak168.WritePacketLength();
-
-			GSUDPPacketOut outpak172 = new GSUDPPacketOut(client.Out.GetPacketCode(eServerPackets.PlayerPosition));
-			//Now copy the whole content of the packet
-			outpak172.Write(con172, 0, 18/*con172.Length*/);
-			outpak172.WritePacketLength();
-
-			//			byte[] pak168 = outpak168.GetBuffer();
-			//			byte[] pak172 = outpak172.GetBuffer();
-			//			outpak168 = null;
-			//			outpak172 = null;
 			GSUDPPacketOut outpak190 = null;
 
 			foreach (GamePlayer player in client.Player.GetPlayersInRadius(WorldMgr.VISIBILITY_DISTANCE))
 			{
+                SendPlayerUpdate(client, con168, con172, outpak190, player);
+			}
+
+			if (client.Player.CharacterClass.ID == (int)eCharacterClass.Warlock)
+			{
+				//Send Chamber effect
+				client.Player.Out.SendWarlockChamberEffect(client.Player);
+			}
+
+			//handle closing of windows
+			//trade window
+			if (client.Player.TradeWindow != null)
+			{
+				if (client.Player.TradeWindow.Partner != null)
+				{
+					if (!client.Player.IsWithinRadius(client.Player.TradeWindow.Partner, WorldMgr.GIVE_ITEM_DISTANCE))
+						client.Player.TradeWindow.CloseTrade();
+				}
+			}
+		}
+
+        private static void NewAreaSystem(GameClient client, Zone newZone)
+        {
+            IList oldAreas = client.Player.CurrentAreas;
+
+            // Because we may be in an instance we need to do the area check from the current region
+            // rather than relying on the zone which is in the skinned region.  - Tolakram
+
+            IList newAreas = client.Player.CurrentRegion.GetAreasOfZone(newZone, client.Player);
+
+            // Check for left areas
+            if (oldAreas != null)
+            {
+                foreach (IArea area in oldAreas)
+                {
+                    if (!newAreas.Contains(area))
+                    {
+                        area.OnPlayerLeave(client.Player);
+                    }
+                }
+            }
+            // Check for entered areas
+            foreach (IArea area in newAreas)
+            {
+                if (oldAreas == null || !oldAreas.Contains(area))
+                {
+                    area.OnPlayerEnter(client.Player);
+                }
+            }
+            // set current areas to new one...
+            client.Player.CurrentAreas = newAreas;
+            client.Player.AreaUpdateTick = client.Player.CurrentRegion.Time + 2000; // update every 2 seconds
+        }
+
+        private void SendPlayerUpdate(GameClient client, byte[] con168, byte[] con172, GSUDPPacketOut outpak190, GamePlayer player)
+			{
 				if (player == null)
-					continue;
+                return;
+            
 				//No position updates for ourselves
-				if (player == client.Player)
-					continue;
+            if (player == client.Player)
+                return;
+
 				//no position updates in different houses
 				if ((client.Player.InHouse || player.InHouse) && player.CurrentHouse != client.Player.CurrentHouse)
-					continue;
+                return;
 
 				if (client.Player.MinotaurRelic != null)
 				{
@@ -747,22 +588,176 @@ namespace DOL.GS.PacketHandler.Client.v168
 					player.Out.SendObjectDelete(client.Player); //remove the stealthed player from view
 			}
 
-			if (client.Player.CharacterClass.ID == (int)eCharacterClass.Warlock)
+        private static void CheckFallingDamage(GameClient client, ushort flyingflag)
 			{
-				//Send Chamber effect
-				client.Player.Out.SendWarlockChamberEffect(client.Player);
+            int maxLastZ = client.Player.MaxLastZ;
+            /* Are we on the ground? */
+            if ((flyingflag >> 15) != 0)
+            {
+                int safeFallLevel = client.Player.GetAbilityLevel(Abilities.SafeFall);
+                int fallSpeed = (flyingflag & 0xFFF) - 100 * safeFallLevel; // 0x7FF fall speed and 0x800 bit = fall speed overcaped
+                int fallMinSpeed = 400;
+                int fallDivide = 6;
+                if (client.Version >= GameClient.eClientVersion.Version188)
+                {
+                    fallMinSpeed = 500;
+                    fallDivide = 15;
+			}
+                if (fallSpeed > fallMinSpeed)
+                {
+                    client.Out.SendMessage(LanguageMgr.GetTranslation(client, "PlayerPositionUpdateHandler.FallingDamage"),
+                                           eChatType.CT_Damaged, eChatLoc.CL_SystemWindow);
+
+                    int fallPercent = Math.Min(99, (fallSpeed - (fallMinSpeed + 1)) / fallDivide);
+                    if (fallPercent > 0)
+			{
+                        if (safeFallLevel > 0)
+                            client.Out.SendMessage(LanguageMgr.GetTranslation(client, "PlayerPositionUpdateHandler.SafeFall"), eChatType.CT_Damaged, eChatLoc.CL_SystemWindow);
+
+                        client.Out.SendMessage(LanguageMgr.GetTranslation(client, "PlayerPositionUpdateHandler.FallPercent", fallPercent),
+                                               eChatType.CT_Damaged, eChatLoc.CL_SystemWindow);
+
+                        client.Player.Endurance -= client.Player.MaxEndurance * fallPercent / 100;
+                        double damage = (0.01 * fallPercent * (client.Player.MaxHealth - 1));
+                        // [Freya] Nidel: CloudSong falling damage reduction
+                        Effects.GameSpellEffect cloudSongFall = Spells.SpellHandler.FindEffectOnTarget(client.Player, "CloudsongFall");
+                        if (cloudSongFall != null)
+				{
+                            damage -= (damage * cloudSongFall.Spell.Value) * 0.01;
+                        }
+                        client.Player.TakeDamage(null, eDamageType.Falling, (int)damage, 0);
+
+                        //Update the player's health to all other players around
+                        foreach (GamePlayer player in client.Player.GetPlayersInRadius(WorldMgr.VISIBILITY_DISTANCE))
+                            player.Out.SendCombatAnimation(null, client.Player, 0, 0, 0, 0, 0, client.Player.HealthPercent);
+                    }
+
+                    client.Out.SendMessage(LanguageMgr.GetTranslation(client, "PlayerPositionUpdateHandler.Endurance"),
+                                           eChatType.CT_Damaged, eChatLoc.CL_SystemWindow);
+                }
+                client.Player.MaxLastZ = client.Player.Z;
+            }
+            else
+            {
+                // always set Z if on the ground
+                if (flyingflag == 0)
+                    client.Player.MaxLastZ = client.Player.Z;
+                // set Z if in air and higher than old Z
+                else if (maxLastZ < client.Player.Z)
+                    client.Player.MaxLastZ = client.Player.Z;
+            }
+        }
+
+        private static void CheckBanSpeedHacker(GameClient client, int environmentTick, int SHlastTick, int SHcount)
+        {
+            if (ServerProperties.Properties.BAN_HACKERS)
+            {
+                DBBannedAccount b = new DBBannedAccount();
+                b.Author = "SERVER";
+                b.Ip = client.TcpEndpointAddress;
+                b.Account = client.Account.Name;
+                b.DateBan = DateTime.Now;
+                b.Type = "B";
+                b.Reason = string.Format("Autoban SH:({0},{1}) on player:{2}", SHcount, environmentTick - SHlastTick, client.Player.Name);
+                GameServer.Database.AddObject(b);
+                GameServer.Database.SaveObject(b);
+
+                string message = "";
+
+                message = "You have been auto kicked and banned for speed hacking!";
+                for (int i = 0; i < 8; i++)
+                {
+                    client.Out.SendMessage(message, eChatType.CT_Help, eChatLoc.CL_SystemWindow);
+                    client.Out.SendMessage(message, eChatType.CT_Help, eChatLoc.CL_ChatWindow);
+                }
+
+                client.Out.SendPlayerQuit(true);
+                client.Player.SaveIntoDatabase();
+                client.Player.Quit(true);
+            }
+            else
+            {
+                string message = "";
+
+                message = "You have been auto kicked for speed hacking!";
+                for (int i = 0; i < 8; i++)
+                {
+                    client.Out.SendMessage(message, eChatType.CT_Help, eChatLoc.CL_SystemWindow);
+                    client.Out.SendMessage(message, eChatType.CT_Help, eChatLoc.CL_ChatWindow);
+                }
+
+                client.Out.SendPlayerQuit(true);
+                client.Player.SaveIntoDatabase();
+                client.Player.Quit(true);
+            }
+        }
+
+        private static void MoveDetect(GameClient client, int coordsPerSec, int jumpDetect)
+        {
+            if (ServerProperties.Properties.BAN_HACKERS && false) // banning disabled until this technique is proven accurate
+            {
+                DBBannedAccount b = new DBBannedAccount();
+                b.Author = "SERVER";
+                b.Ip = client.TcpEndpointAddress;
+                b.Account = client.Account.Name;
+                b.DateBan = DateTime.Now;
+                b.Type = "B";
+                b.Reason = string.Format("Autoban MOVEHACK:(CPS:{0}, JT:{1}) on player:{2}", coordsPerSec, jumpDetect, client.Player.Name);
+                GameServer.Database.AddObject(b);
+                GameServer.Database.SaveObject(b);
+
+                string message = "";
+
+                message = "You have been auto kicked and banned due to movement hack detection!";
+                for (int i = 0; i < 8; i++)
+                {
+                    client.Out.SendMessage(message, eChatType.CT_Help, eChatLoc.CL_SystemWindow);
+                    client.Out.SendMessage(message, eChatType.CT_Help, eChatLoc.CL_ChatWindow);
+				}
+
+                client.Out.SendPlayerQuit(true);
+                client.Player.SaveIntoDatabase();
+                client.Player.Quit(true);
+            }
+            else
+            {
+                string message = "";
+
+                message = "You have been auto kicked due to movement hack detection!";
+                for (int i = 0; i < 8; i++)
+                {
+                    client.Out.SendMessage(message, eChatType.CT_Help, eChatLoc.CL_SystemWindow);
+                    client.Out.SendMessage(message, eChatType.CT_Help, eChatLoc.CL_ChatWindow);
+                }
+
+                client.Out.SendPlayerQuit(true);
+                client.Player.SaveIntoDatabase();
+                client.Player.Quit(true);
+            }
+            client.Disconnect();
+            return;
 			}
 
-			//handle closing of windows
-			//trade window
-			if (client.Player.TradeWindow != null)
-			{
-				if (client.Player.TradeWindow.Partner != null)
-				{
-					if (!client.Player.IsWithinRadius(client.Player.TradeWindow.Partner, WorldMgr.GIVE_ITEM_DISTANCE))
-						client.Player.TradeWindow.CloseTrade();
-				}
-			}
+        private static void ZoneChange(GameClient client, Zone newZone)
+        {
+            //If the region changes -> make sure we don't take any falling damage
+            if (client.Player.LastPositionUpdateZone != null && newZone.ZoneRegion.ID != client.Player.LastPositionUpdateZone.ZoneRegion.ID)
+                client.Player.MaxLastZ = int.MinValue;
+
+            // Update water level and diving flag for the new zone
+            client.Out.SendPlayerPositionAndObjectID();
+
+            /*
+             * "You have entered Burial Tomb."
+             * "Burial Tomb"
+             * "Current area is adjusted for one level 1 player."
+             * "Current area has a 50% instance bonus."
+             */
+            client.Out.SendMessage(LanguageMgr.GetTranslation(client, "PlayerPositionUpdateHandler.Entered", newZone.Description),
+                                   eChatType.CT_System, eChatLoc.CL_SystemWindow);
+            client.Out.SendMessage(newZone.Description, eChatType.CT_ScreenCenterSmaller, eChatLoc.CL_SystemWindow);
+
+            client.Player.LastPositionUpdateZone = newZone;
 		}
 	}
 }
