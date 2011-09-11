@@ -15820,9 +15820,9 @@ namespace DOL.GS
 			: base()
 		{
 			IsJumping = false;
-			m_steed = new WeakRef(null);
-			m_rangeAttackAmmo = new WeakRef(null);
-			m_rangeAttackTarget = new WeakRef(null);
+			m_steed = new WeakReference(null);
+			m_rangeAttackAmmo = new WeakReference(null);
+			m_rangeAttackTarget = new WeakReference(null);
 			m_client = client;
 			m_dbCharacter = dbChar;
 			m_controlledHorse = new ControlledHorse(this);

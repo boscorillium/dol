@@ -114,7 +114,7 @@ namespace DOL.GS
 				}
 				else
 				{
-					player.TempProperties.setProperty(REPAIR_ITEM_WEAK, new WeakRef(item));
+					player.TempProperties.setProperty(REPAIR_ITEM_WEAK, new WeakReference(item));
 					player.Client.Out.SendCustomDialog(LanguageMgr.GetTranslation(player.Client,
 					                                                              "Scripts.Blacksmith.RepairCostAccept",
 					                                                              Money.GetString(item.RepairCost), item.Name),
@@ -137,7 +137,7 @@ namespace DOL.GS
 			WeakReference itemWeak =
 				(WeakReference) player.TempProperties.getProperty<object>(
 					REPAIR_ITEM_WEAK,
-					new WeakRef(null)
+					new WeakReference(null)
 				);
 			player.TempProperties.removeProperty(REPAIR_ITEM_WEAK);
 			InventoryItem item = (InventoryItem)itemWeak.Target;

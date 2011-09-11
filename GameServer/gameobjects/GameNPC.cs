@@ -5338,7 +5338,7 @@ namespace DOL.GS
 			GuildName = "";
 
 			m_brainSync = m_brains.SyncRoot;
-			m_followTarget = new WeakRef(null);
+			m_followTarget = new WeakReference(null);
 
 			m_size = 50; //Default size
 			TargetPosition = new Point3D();

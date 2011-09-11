@@ -89,12 +89,12 @@ namespace DOL.GS
 			long NeededMoney=0;
 			if (item.Charges < item.MaxCharges)
 			{
-				player.TempProperties.setProperty(RECHARGE_ITEM_WEAK, new WeakRef(item));
+				player.TempProperties.setProperty(RECHARGE_ITEM_WEAK, new WeakReference(item));
 				NeededMoney += (item.MaxCharges - item.Charges)*Money.GetMoney(0,0,10,0,0);
 			}
 			if (item.Charges1 < item.MaxCharges1)
 			{
-				player.TempProperties.setProperty(RECHARGE_ITEM_WEAK, new WeakRef(item));
+				player.TempProperties.setProperty(RECHARGE_ITEM_WEAK, new WeakReference(item));
 				NeededMoney += (item.MaxCharges1 - item.Charges1)*Money.GetMoney(0,0,10,0,0);
 			}
 			if(NeededMoney > 0)
@@ -110,7 +110,7 @@ namespace DOL.GS
 			WeakReference itemWeak =
 				(WeakReference) player.TempProperties.getProperty<object>(
 				RECHARGE_ITEM_WEAK,
-				new WeakRef(null)
+				new WeakReference(null)
 				);
 			player.TempProperties.removeProperty(RECHARGE_ITEM_WEAK);
 

@@ -6606,7 +6606,7 @@ namespace DOL.GS
 			: base()
 		{
 			m_guildName = string.Empty;
-			m_targetObjectWeakReference = new WeakRef(null);
+			m_targetObjectWeakReference = new WeakReference(null);
 			m_groundTarget = new Point3D(0, 0, 0);
 
 			//Set all combat properties

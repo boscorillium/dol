@@ -77,7 +77,7 @@ namespace DOL.GS
 				{
 					if (item.Bonus == 0)
 					{
-						t.TempProperties.setProperty(ENCHANT_ITEM_WEAK, new WeakRef(item));
+						t.TempProperties.setProperty(ENCHANT_ITEM_WEAK, new WeakReference(item));
                         t.Client.Out.SendCustomDialog(LanguageMgr.GetTranslation(t.Client, "Enchanter.ReceiveItem.Text1", Money.GetString(CalculEnchantPrice(item))), new CustomDialogResponse(EnchanterDialogResponse));
                     }
 					else
@@ -97,7 +97,7 @@ namespace DOL.GS
 			WeakReference itemWeak =
 				(WeakReference) player.TempProperties.getProperty<object>(
 					ENCHANT_ITEM_WEAK,
-					new WeakRef(null)
+					new WeakReference(null)
 					);
 			player.TempProperties.removeProperty(ENCHANT_ITEM_WEAK);
 

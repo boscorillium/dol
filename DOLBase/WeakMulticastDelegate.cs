@@ -87,7 +87,7 @@ namespace DOL
 
 			//Is it a static?
 			if (realDelegate.Target != null)
-				_weakRef = new WeakRef(realDelegate.Target);
+				_weakRef = new WeakReference(realDelegate.Target);
 
 			_method = realDelegate.Method;
 		}

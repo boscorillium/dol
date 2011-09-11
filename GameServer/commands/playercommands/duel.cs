@@ -134,7 +134,7 @@ namespace DOL.GS.Commands
 					}
 			}
 
-			WeakRef weak = null;
+			WeakReference weak = null;
 			GamePlayer duelStarter = null;
 			GamePlayer duelTarget = null;
 
@@ -157,13 +157,13 @@ namespace DOL.GS.Commands
 
 						lock (client.Player.TempProperties)
 						{
-							weak = client.Player.TempProperties.getProperty<object>(CHALLENGE_TARGET_WEAK, null) as WeakRef;
+							weak = client.Player.TempProperties.getProperty<object>(CHALLENGE_TARGET_WEAK, null) as WeakReference;
 							if (weak != null && (duelTarget = weak.Target as GamePlayer) != null)
 							{
 								client.Out.SendMessage(LanguageMgr.GetTranslation(client, "Scripts.Players.Duel.YouAlreadyChallenging", duelTarget.Name), eChatType.CT_Emote, eChatLoc.CL_SystemWindow);
 								return;
 							}
-							weak = client.Player.TempProperties.getProperty<object>(DUEL_STARTER_WEAK, null) as WeakRef;
+							weak = client.Player.TempProperties.getProperty<object>(DUEL_STARTER_WEAK, null) as WeakReference;
 							if (weak != null && (duelStarter = weak.Target as GamePlayer) != null)
 							{
 								client.Out.SendMessage(LanguageMgr.GetTranslation(client, "Scripts.Players.Duel.YouAlreadyConsidering", duelStarter.Name), eChatType.CT_Emote, eChatLoc.CL_SystemWindow);
@@ -184,12 +184,12 @@ namespace DOL.GS.Commands
 								return;
 							}
 
-							target.TempProperties.setProperty(DUEL_STARTER_WEAK, new WeakRef(client.Player));
+							target.TempProperties.setProperty(DUEL_STARTER_WEAK, new WeakReference(client.Player));
 						}
 
 						lock (client.Player.TempProperties)
 						{
-							client.Player.TempProperties.setProperty(CHALLENGE_TARGET_WEAK, new WeakRef(target));
+							client.Player.TempProperties.setProperty(CHALLENGE_TARGET_WEAK, new WeakReference(target));
 						}
 
 						client.Out.SendMessage(LanguageMgr.GetTranslation(client, "Scripts.Players.Duel.YouChallenge", target.Name), eChatType.CT_Emote, eChatLoc.CL_SystemWindow);
@@ -202,7 +202,7 @@ namespace DOL.GS.Commands
 					{
 						lock (client.Player.TempProperties)
 						{
-							weak = client.Player.TempProperties.getProperty<object>(DUEL_STARTER_WEAK, null) as WeakRef;
+							weak = client.Player.TempProperties.getProperty<object>(DUEL_STARTER_WEAK, null) as WeakReference;
 						}
 
 						if (weak == null || (duelStarter = weak.Target as GamePlayer) == null)
@@ -235,7 +235,7 @@ namespace DOL.GS.Commands
 					{
 						lock (client.Player.TempProperties)
 						{
-							weak = client.Player.TempProperties.getProperty<object>(DUEL_STARTER_WEAK, null) as WeakRef;
+							weak = client.Player.TempProperties.getProperty<object>(DUEL_STARTER_WEAK, null) as WeakReference;
 							client.Player.TempProperties.removeProperty(DUEL_STARTER_WEAK);
 						}
 
@@ -259,7 +259,7 @@ namespace DOL.GS.Commands
 					{
 						lock (client.Player.TempProperties)
 						{
-							weak = client.Player.TempProperties.getProperty<object>(CHALLENGE_TARGET_WEAK, null) as WeakRef;
+							weak = client.Player.TempProperties.getProperty<object>(CHALLENGE_TARGET_WEAK, null) as WeakReference;
 							client.Player.TempProperties.removeProperty(CHALLENGE_TARGET_WEAK);
 						}
 

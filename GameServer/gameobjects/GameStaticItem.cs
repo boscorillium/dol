@@ -397,7 +397,7 @@ namespace DOL.GS
 			{
 				foreach(WeakReference weak in m_owners)
 					if(weak.Target==player) return;
-				m_owners.Add(new WeakRef(player));
+				m_owners.Add(new WeakReference(player));
 			}
 		}
 		/// <summary>

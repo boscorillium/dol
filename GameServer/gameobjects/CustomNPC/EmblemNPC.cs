@@ -95,7 +95,7 @@ namespace DOL.GS
 					t.Out.SendMessage("You do not have enough privileges for that.", eChatType.CT_System, eChatLoc.CL_SystemWindow);
 					return false;
 				}
-				t.TempProperties.setProperty(EMBLEMIZE_ITEM_WEAK, new WeakRef(item));
+				t.TempProperties.setProperty(EMBLEMIZE_ITEM_WEAK, new WeakReference(item));
 				t.Out.SendCustomDialog("Do you agree to put an emblem on this object?", new CustomDialogResponse(EmblemerDialogResponse));
 			}
 			else
@@ -109,7 +109,7 @@ namespace DOL.GS
 			WeakReference itemWeak =
 				(WeakReference) player.TempProperties.getProperty<object>(
 					EMBLEMIZE_ITEM_WEAK,
-					new WeakRef(null)
+					new WeakReference(null)
 					);
 			player.TempProperties.removeProperty(EMBLEMIZE_ITEM_WEAK);
 

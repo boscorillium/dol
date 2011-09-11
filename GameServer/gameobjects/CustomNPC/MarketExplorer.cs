@@ -31,7 +31,7 @@ namespace DOL.GS
 
         public void BuyItem(InventoryItem item, GamePlayer player)
         {
-            player.TempProperties.setProperty(EXPLORER_ITEM_WEAK, new WeakRef(item));
+            player.TempProperties.setProperty(EXPLORER_ITEM_WEAK, new WeakReference(item));
             player.Out.SendCustomDialog("Buying directly from the Market Explorer costs an additional 20% fee.\nDo you want to buy the Item?", new CustomDialogResponse(MarketExplorerBuyDialogue));
         }
 
@@ -42,7 +42,7 @@ namespace DOL.GS
                 player.TempProperties.removeProperty(EXPLORER_ITEM_WEAK);
                 return;
             }
-            WeakReference itemWeak = (WeakReference)player.TempProperties.getProperty<object>(EXPLORER_ITEM_WEAK, new WeakRef(null));
+            WeakReference itemWeak = (WeakReference)player.TempProperties.getProperty<object>(EXPLORER_ITEM_WEAK, new WeakReference(null));
             InventoryItem item = (InventoryItem)itemWeak.Target;
             player.TempProperties.removeProperty(EXPLORER_ITEM_WEAK);
 

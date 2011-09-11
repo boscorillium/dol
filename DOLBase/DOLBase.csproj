@@ -154,9 +154,6 @@
     <Compile Include="WeakMulticastDelegate.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="WeakRef.cs">
-      <SubType>Code</SubType>
-    </Compile>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
