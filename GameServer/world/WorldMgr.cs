@@ -582,11 +582,15 @@ namespace DOL.GS
 				long merchants = 0;
 				long items = 0;
 				long bindpoints = 0;
+
+                if (ServerProperties.Properties.LOAD_REGIONS)
+                {
 				foreach (RegionData data in regionsData)
 				{
 					Region reg = (Region)m_regions[data.Id];
 					reg.LoadFromDatabase(data.Mobs, ref mobs, ref merchants, ref items, ref bindpoints);
 				}
+                }
 
 				if (log.IsInfoEnabled)
 				{

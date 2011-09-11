@@ -238,6 +238,12 @@ namespace DOL.GS.ServerProperties
 		[ServerProperty("system", "enable_audit_log", "Whether or not to enable the audit log", false)]
 		public static bool ENABLE_AUDIT_LOG;
 
+        /// <summary>
+        /// Whether the region data will be loaded from the database
+        /// </summary>
+        [ServerProperty("system", "load_regions", "Should we populate regions with mobs, merchants, etc.", true)]
+        public static bool LOAD_REGIONS;
+
 		#endregion
 
 		#region LOGGING
